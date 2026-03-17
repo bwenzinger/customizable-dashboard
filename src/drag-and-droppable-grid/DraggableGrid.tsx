@@ -43,9 +43,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     columns = 3,
     gap = 12,
     className,
-    style,
     itemClassName,
-    itemStyle,
     animationMs = 180,
   } = props;
 
@@ -252,12 +250,16 @@ export function DraggableGrid<T extends DraggableGridItem>(
       className={className}
       onDragOver={handleContainerDragOver}
       onDrop={handleContainerDrop}
-      style={style}
       sx={{
+        height: '100%',
+        width: '100%',
         display: 'grid',
         gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
         gap: `${gap}px`,
-        alignItems: 'stretch',
+        alignItems: 'start',
+        justifyItems: 'stretch',
+        alignContent: 'start',
+        justifyContent: 'start',
         overflowX: 'hidden',
       }}
     >
@@ -273,7 +275,6 @@ export function DraggableGrid<T extends DraggableGridItem>(
             onDragEnd={handleDragEnd}
             onDragOver={handleItemDragOver(item.id)}
             className={itemClassName}
-            style={itemStyle}
             sx={{
               minWidth: 0,
               cursor: 'grab',

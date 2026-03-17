@@ -24,7 +24,7 @@ function App() {
   const [layout, setLayout] = useState<Tile[]>(initialLayout);
 
   return (
-    <Box sx={{ p: 6 }}>
+    <Box sx={{ p: 6, height: '100vh', width: '100vw' }}>
       <DraggableGrid<Tile>
         layout={layout}
         onLayoutChanged={setLayout}
