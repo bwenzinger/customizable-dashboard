@@ -11,12 +11,12 @@ type Tile = DraggableGridItem & {
 };
 
 const initialLayout: Tile[] = [
-  { id: 'a', title: 'Overview' },
-  { id: 'b', title: 'Alerts' },
-  { id: 'c', title: 'Usage' },
-  { id: 'd', title: 'Cost' },
-  { id: 'e', title: 'Forecast' },
-  { id: 'f', title: 'Settings' },
+  { id: 'a', title: 'Overview', width: 1, minWidth: 1, maxWidth: 3 },
+  { id: 'b', title: 'Alerts', width: 1, minWidth: 1, maxWidth: 2 },
+  { id: 'c', title: 'Usage', width: 1, minWidth: 1, maxWidth: 3 },
+  { id: 'd', title: 'Cost', width: 1, minWidth: 1, maxWidth: 2 },
+  { id: 'e', title: 'Forecast', width: 1, minWidth: 1, maxWidth: 3 },
+  { id: 'f', title: 'Settings', width: 1, minWidth: 1, maxWidth: 2 },
 ];
 
 function App() {
@@ -24,7 +24,13 @@ function App() {
   const [layout, setLayout] = useState<Tile[]>(initialLayout);
 
   return (
-    <Box sx={{ p: 6, height: '100vh', width: '100vw' }}>
+    <Box
+      sx={{
+        height: '100vh',
+        width: '100vw',
+        boxSizing: 'border-box',
+      }}
+    >
       <DraggableGrid<Tile>
         layout={layout}
         onLayoutChanged={setLayout}
@@ -50,7 +56,9 @@ function App() {
                 textAlign: 'center',
               }}
             >
-              <Typography fontWeight={600}>{item.title}</Typography>
+              <Typography fontWeight={600}>
+                {item.title} ({item.width})
+              </Typography>
             </CardContent>
           </Card>
         )}
