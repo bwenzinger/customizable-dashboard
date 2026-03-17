@@ -7,6 +7,7 @@ import {
   type DragEvent as ReactDragEvent,
   type ReactNode,
 } from 'react';
+import { Box } from '@mui/material';
 
 export type DraggableGridItem = {
   id: string;
@@ -247,21 +248,24 @@ export function DraggableGrid<T extends DraggableGridItem>(
   );
 
   return (
-    <div
+    <Box
       className={className}
       onDragOver={handleContainerDragOver}
       onDrop={handleContainerDrop}
-      style={getContainerStyle({
-        columns,
-        gap,
-        style,
-      })}
+      style={style}
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gap: `${gap}px`,
+        alignItems: 'stretch',
+        overflowX: 'hidden',
+      }}
     >
       {renderedLayout.map((item, index) => {
         const isDragging = item.id === draggingId;
 
         return (
-          <div
+          <Box
             key={item.id}
             ref={setItemRef(item.id)}
             draggable
@@ -269,52 +273,21 @@ export function DraggableGrid<T extends DraggableGridItem>(
             onDragEnd={handleDragEnd}
             onDragOver={handleItemDragOver(item.id)}
             className={itemClassName}
-            style={getItemStyle({
-              animationMs,
-              isDragging,
-              itemStyle,
-            })}
+            style={itemStyle}
+            sx={{
+              minWidth: 0,
+              cursor: 'grab',
+              userSelect: 'none',
+              opacity: isDragging ? 0.35 : 1,
+              transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
+            }}
           >
             {renderItem(item, index, isDragging)}
-          </div>
+          </Box>
         );
       })}
-    </div>
+    </Box>
   );
-}
-
-function getContainerStyle(args: {
-  columns: number;
-  gap: number;
-  style: CSSProperties | undefined;
-}): CSSProperties {
-  const { columns, gap, style } = args;
-
-  return {
-    display: 'grid',
-    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-    gap,
-    alignItems: 'stretch',
-    overflow: 'hidden',
-    ...style,
-  };
-}
-
-function getItemStyle(args: {
-  animationMs: number;
-  isDragging: boolean;
-  itemStyle: CSSProperties | undefined;
-}): CSSProperties {
-  const { animationMs, isDragging, itemStyle } = args;
-
-  return {
-    minWidth: 0,
-    cursor: 'grab',
-    userSelect: 'none',
-    opacity: isDragging ? 0.35 : 1,
-    transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
-    ...itemStyle,
-  };
 }
 
 function reorderItems<T>(items: T[], fromIndex: number, toIndex: number): T[] {
