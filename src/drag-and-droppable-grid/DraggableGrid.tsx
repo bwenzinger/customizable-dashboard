@@ -25,6 +25,13 @@ export type DraggableGridProps<T extends DraggableGridItem> = {
   animationMs?: number;
 };
 
+type ReorderLock = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+} | null;
+
 export function DraggableGrid<T extends DraggableGridItem>(
   props: DraggableGridProps<T>
 ): React.JSX.Element {
@@ -46,7 +53,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
-  const lastSwapSignatureRef = useRef<string>('');
+  const reorderLockRef = useRef<ReorderLock>(null);
 
   const renderedLayout =
     draggingId !== null && draftLayout !== null ? draftLayout : layout;
@@ -122,7 +129,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
       setDraggingId(itemId);
       setDraftLayout(layout);
-      lastSwapSignatureRef.current = '';
+      reorderLockRef.current = null;
 
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', itemId);
@@ -133,7 +140,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const finishDrag = useCallback(() => {
     setDraggingId(null);
     setDraftLayout(null);
-    lastSwapSignatureRef.current = '';
+    reorderLockRef.current = null;
   }, []);
 
   const handleDragEnd = useCallback(() => {
@@ -144,6 +151,24 @@ export function DraggableGrid<T extends DraggableGridItem>(
     (event: ReactDragEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
+
+      const lock = reorderLockRef.current;
+
+      if (!lock) {
+        return;
+      }
+
+      if (
+        isPointWithinRect({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect: lock,
+        })
+      ) {
+        return;
+      }
+
+      reorderLockRef.current = null;
     },
     []
   );
@@ -168,6 +193,19 @@ export function DraggableGrid<T extends DraggableGridItem>(
         return;
       }
 
+      const currentLock = reorderLockRef.current;
+
+      if (
+        currentLock &&
+        isPointWithinRect({
+          clientX: event.clientX,
+          clientY: event.clientY,
+          rect: currentLock,
+        })
+      ) {
+        return;
+      }
+
       const fromIndex = currentDraftLayout.findIndex(
         (item) => item.id === activeDraggingId
       );
@@ -179,28 +217,28 @@ export function DraggableGrid<T extends DraggableGridItem>(
         return;
       }
 
+      const targetRect = event.currentTarget.getBoundingClientRect();
+
       const shouldMove = shouldReorderOnOverlap({
         fromIndex,
         toIndex,
         columns,
-        targetRect: event.currentTarget.getBoundingClientRect(),
+        targetRect,
         clientX: event.clientX,
         clientY: event.clientY,
+        overlapPx: 20,
       });
 
       if (!shouldMove) {
         return;
       }
 
-      const swapSignature = `${activeDraggingId}:${fromIndex}->${toIndex}`;
-
-      if (lastSwapSignatureRef.current === swapSignature) {
-        return;
-      }
-
-      lastSwapSignatureRef.current = swapSignature;
-
       const nextLayout = reorderItems(currentDraftLayout, fromIndex, toIndex);
+
+      reorderLockRef.current = expandRect({
+        rect: targetRect,
+        paddingPx: 8,
+      });
 
       setDraftLayout(nextLayout);
       onLayoutChanged(nextLayout);
@@ -257,6 +295,7 @@ function getContainerStyle(args: {
     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
     gap,
     alignItems: 'stretch',
+    overflow: 'hidden',
     ...style,
   };
 }
@@ -303,28 +342,73 @@ function shouldReorderOnOverlap(args: {
   targetRect: DOMRect;
   clientX: number;
   clientY: number;
+  overlapPx: number;
 }): boolean {
-  const { fromIndex, toIndex, columns, targetRect, clientX, clientY } = args;
+  const {
+    fromIndex,
+    toIndex,
+    columns,
+    targetRect,
+    clientX,
+    clientY,
+    overlapPx,
+  } = args;
 
   const fromRow = Math.floor(fromIndex / columns);
   const toRow = Math.floor(toIndex / columns);
   const isSameRow = fromRow === toRow;
 
   if (isSameRow) {
-    const targetMidX = targetRect.left + targetRect.width / 2;
+    const threshold = Math.min(overlapPx, targetRect.width / 2);
 
     if (fromIndex < toIndex) {
-      return clientX >= targetMidX;
+      return clientX >= targetRect.left + threshold;
     }
 
-    return clientX <= targetMidX;
+    return clientX <= targetRect.right - threshold;
   }
 
-  const targetMidY = targetRect.top + targetRect.height / 2;
+  const threshold = Math.min(overlapPx, targetRect.height / 2);
 
   if (fromIndex < toIndex) {
-    return clientY >= targetMidY;
+    return clientY >= targetRect.top + threshold;
   }
 
-  return clientY <= targetMidY;
+  return clientY <= targetRect.bottom - threshold;
+}
+
+function isPointWithinRect(args: {
+  clientX: number;
+  clientY: number;
+  rect: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  };
+}): boolean {
+  const { clientX, clientY, rect } = args;
+
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
+function expandRect(args: { rect: DOMRect; paddingPx: number }): {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+} {
+  const { rect, paddingPx } = args;
+
+  return {
+    left: rect.left - paddingPx,
+    right: rect.right + paddingPx,
+    top: rect.top - paddingPx,
+    bottom: rect.bottom + paddingPx,
+  };
 }
