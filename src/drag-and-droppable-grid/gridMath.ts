@@ -334,20 +334,48 @@ export function moveItemToGridSlot<T extends {
 
   // Give the actively moved item priority at the requested slot, then reflow
   // every other item around it.
-  const prioritizedLayout = [
-    {
+  return normalizeLayoutWithPriority({
+    layout,
+    prioritizedItem: {
       ...movedItem,
       row,
       column,
     },
-    ...layout.filter((item) => item.id !== itemId),
-  ];
-  const resolvedLayout = normalizeLayoutPositions(prioritizedLayout, columns);
-  const resolvedById = new Map(
-    resolvedLayout.map((item) => [item.id, item] as const)
-  );
+    columns,
+  });
+}
 
-  return layout.map((item) => resolvedById.get(item.id) ?? item);
+export function resizeItemInLayout<T extends {
+  id: string;
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  row?: number;
+  column?: number;
+}>(args: {
+  layout: T[];
+  itemId: string;
+  width: number;
+  columns: number;
+}): T[] {
+  const { layout, itemId, width, columns } = args;
+  const resizedItem = layout.find((item) => item.id === itemId);
+
+  if (!resizedItem) {
+    return layout;
+  }
+
+  // Keep the actively resized item anchored to its current slot first, then let
+  // the rest of the grid move around it. This avoids "skipping" widths when an
+  // earlier item temporarily occupies the resized space.
+  return normalizeLayoutWithPriority({
+    layout,
+    prioritizedItem: {
+      ...resizedItem,
+      width,
+    },
+    columns,
+  });
 }
 
 export function getRequiredRowCount<T extends { row?: number }>(
@@ -482,6 +510,31 @@ function markOccupiedCells(args: {
 
 function getOccupiedCellKey(row: number, column: number): string {
   return `${row}:${column}`;
+}
+
+function normalizeLayoutWithPriority<T extends {
+  id: string;
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  row?: number;
+  column?: number;
+}>(args: {
+  layout: T[];
+  prioritizedItem: T;
+  columns: number;
+}): T[] {
+  const { layout, prioritizedItem, columns } = args;
+  const prioritizedLayout = [
+    prioritizedItem,
+    ...layout.filter((item) => item.id !== prioritizedItem.id),
+  ];
+  const resolvedLayout = normalizeLayoutPositions(prioritizedLayout, columns);
+  const resolvedById = new Map(
+    resolvedLayout.map((item) => [item.id, item] as const)
+  );
+
+  return layout.map((item) => resolvedById.get(item.id) ?? item);
 }
 
 export function resolveColumns(args: {

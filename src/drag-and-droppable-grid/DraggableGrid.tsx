@@ -18,6 +18,7 @@ import {
   moveItemToGridSlot,
   normalizeItemWidth,
   normalizeLayoutPositions,
+  resizeItemInLayout,
   resolveColumns,
 } from './gridMath';
 import type {
@@ -218,32 +219,28 @@ export function DraggableGrid<T extends DraggableGridItem>(
         startWidth: resizeState.startWidth,
         deltaX: event.clientX - resizeState.startClientX,
       });
+      const activeItem = resizeState.layoutAtResizeStart.find(
+        (item) => item.id === resizeState.itemId
+      );
+
+      if (!activeItem) {
+        return;
+      }
+
       // Rebuild from the snapshot captured at resize start so the item keeps a
       // stable base position while its width changes.
-      const nextLayout = normalizeLayoutPositions(
-        resizeState.layoutAtResizeStart.map((item) => {
-          if (item.id !== resizeState.itemId) {
-            return item;
-          }
-
-          const clampedWidth = normalizeItemWidth({
-            width: nextWidth,
-            minWidth: item.minWidth,
-            maxWidth: item.maxWidth,
-            columns: resolvedColumns,
-          });
-
-          if (clampedWidth === item.width) {
-            return item;
-          }
-
-          return {
-            ...item,
-            width: clampedWidth,
-          };
-        }),
-        resolvedColumns
-      );
+      const clampedWidth = normalizeItemWidth({
+        width: nextWidth,
+        minWidth: activeItem.minWidth,
+        maxWidth: activeItem.maxWidth,
+        columns: resolvedColumns,
+      });
+      const nextLayout = resizeItemInLayout({
+        layout: resizeState.layoutAtResizeStart,
+        itemId: resizeState.itemId,
+        width: clampedWidth,
+        columns: resolvedColumns,
+      });
 
       if (haveSameGridLayout(resizeState.layoutAtResizeStart, nextLayout)) {
         return;
