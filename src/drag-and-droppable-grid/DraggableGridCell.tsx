@@ -39,6 +39,7 @@ export function DraggableGridCell(
     onDragOver,
     onResizeMouseDown,
   } = props;
+  const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 18);
 
   return (
     <Box
@@ -66,15 +67,42 @@ export function DraggableGridCell(
         onMouseDown={onResizeMouseDown}
         sx={{
           position: 'absolute',
-          top: 0,
+          top: 8,
           right: 0,
-          bottom: 0,
-          width: `${resizeHandleWidth}px`,
+          bottom: 8,
+          width: `${visibleResizeHandleWidth}px`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           cursor: 'col-resize',
           zIndex: 2,
-          backgroundColor: 'transparent',
+          borderTopLeftRadius: 10,
+          borderBottomLeftRadius: 10,
+          background:
+            'linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.14))',
+          borderLeft: '1px solid rgba(15, 23, 42, 0.12)',
+          transition: `background-color ${Math.min(animationMs, 120)}ms ease`,
         }}
-      />
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gap: '3px',
+          }}
+        >
+          {Array.from({ length: 5 }, (_, index) => (
+            <Box
+              key={`resize-grip-${index}`}
+              sx={{
+                width: 10,
+                height: '2px',
+                borderRadius: 999,
+                bgcolor: 'rgba(15, 23, 42, 0.45)',
+              }}
+            />
+          ))}
+        </Box>
+      </Box>
     </Box>
   );
 }
