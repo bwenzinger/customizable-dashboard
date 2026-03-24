@@ -33,6 +33,8 @@ function App() {
   const [layoutHistory, setLayoutHistory] = useState<Tile[][]>([]);
 
   const handleLayoutChanged = useCallback((nextLayout: Tile[]) => {
+    // Live grid updates drive the current preview/committed layout shown on
+    // screen, but they do not automatically create undo history.
     setLayout(nextLayout);
   }, []);
 
@@ -43,6 +45,7 @@ function App() {
       return;
     }
 
+    // Only finalized interactions push an undo checkpoint.
     setLayoutHistory((currentHistory) => [...currentHistory, previousLayout]);
   }, []);
 

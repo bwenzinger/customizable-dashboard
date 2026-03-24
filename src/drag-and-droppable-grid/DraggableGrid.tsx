@@ -96,16 +96,22 @@ export function DraggableGrid<T extends DraggableGridItem>(
     (draggingId !== null || resizeState !== null) && draftLayout !== null
       ? draftLayout
       : layout;
+  // Keep a normalized, collision-free version of the layout for both preview
+  // rendering and committed state updates.
   const normalizedRenderedLayout = normalizeLayoutPositions(
     renderedLayout,
     resolvedColumns
   );
   const requiredRowCount = getRequiredRowCount(normalizedRenderedLayout);
+  // The grid can be manually expanded, but it should never shrink below the
+  // rows required to display the current item placements.
   const resolvedRowCount = Math.max(rowCount, minRowCount, requiredRowCount);
   const gridContentHeight =
     resolvedRowCount * rowHeight + Math.max(0, resolvedRowCount - 1) * gap;
 
   useEffect(() => {
+    // Normalize any externally supplied layout so widths and slot positions stay
+    // valid even if the parent passes partial or out-of-date coordinates.
     const normalizedLayout = normalizeLayoutPositions(layout, resolvedColumns);
 
     if (!haveSameGridLayout(layout, normalizedLayout)) {
@@ -114,6 +120,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
   }, [layout, onLayoutChanged, resolvedColumns]);
 
   useLayoutEffect(() => {
+    // Measure item positions after every preview/commit so neighboring cards can
+    // animate from their old slot into the new one.
     const nextRects = new Map<string, DOMRect>();
     const frameIds: number[] = [];
 
@@ -132,6 +140,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     });
 
     if (resizeState !== null || gridResizeState !== null) {
+      // During active resizing we want direct manipulation, not FLIP motion.
       nextRects.forEach((_nextRect, itemId) => {
         const element = itemRefs.current.get(itemId);
 
@@ -167,6 +176,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       void element.getBoundingClientRect();
 
+      // On the next frame, remove the temporary offset so CSS animates the
+      // element into the newly computed grid slot.
       const frameId = window.requestAnimationFrame(() => {
         element.style.transition = `transform ${animationMs}ms cubic-bezier(0.2, 0, 0, 1)`;
         element.style.transform = 'translate(0px, 0px)';
@@ -209,6 +220,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
         startWidth: resizeState.startWidth,
         deltaX: event.clientX - resizeState.startClientX,
       });
+      // Rebuild from the snapshot captured at resize start so the item keeps a
+      // stable base position while its width changes.
       const nextLayout = normalizeLayoutPositions(
         resizeState.layoutAtResizeStart.map((item) => {
           if (item.id !== resizeState.itemId) {
@@ -248,6 +261,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
         resolvedColumns
       );
 
+      // History should only record the finished resize gesture, not the live
+      // mousemove updates that happen while dragging the handle.
       if (
         !haveSameGridLayout(resizeState.layoutAtResizeStart, finalLayout)
       ) {
@@ -286,6 +301,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
     const handleMouseMove = (event: MouseEvent) => {
       const rowStride = rowHeight + gap;
+      // Resize the overall grid in whole-row increments so extra empty space is
+      // predictable and matches the visible row tracks.
       const nextRowCount = Math.max(
         minRowCount,
         requiredRowCount,
@@ -330,6 +347,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       const itemRect = event.currentTarget.getBoundingClientRect();
 
+      // Remember where inside the card the user grabbed it so slot placement
+      // feels anchored to that grab point instead of the card's top-left corner.
       dragPointerOffsetRef.current = {
         x: event.clientX - itemRect.left,
         y: event.clientY - itemRect.top,
@@ -383,6 +402,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
       }
 
       const slot = getGridSlotFromPointer({
+        // Convert the pointer back to the dragged card's top-left corner before
+        // resolving the target grid slot.
         clientX: clientX - (dragPointerOffsetRef.current?.x ?? 0) + 1,
         clientY: clientY - (dragPointerOffsetRef.current?.y ?? 0) + 1,
         containerRect: containerElement.getBoundingClientRect(),
@@ -447,6 +468,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
       return;
     }
 
+    // Only preview a move after hovering over the same target for a short time.
+    // This keeps "passing over" another card from immediately reshuffling it.
     clearHoverPreview();
     hoverPreviewKeyRef.current = hoverKey;
     hoverPreviewTimeoutRef.current = window.setTimeout(() => {
@@ -486,6 +509,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       resolvedColumns
     );
 
+    // Persist the final layout only when the drag actually drops.
     if (!haveSameGridLayout(layout, committedLayout)) {
       onLayoutChanged(committedLayout);
       onLayoutCommitted?.(committedLayout, layout, 'drop');
@@ -620,6 +644,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
           gap: '4px',
         }}
       >
+        {/* Bottom handle for changing the total number of available rows. */}
         {Array.from({ length: 3 }, (_, index) => (
           <Box
             key={`grid-row-handle-${index}`}

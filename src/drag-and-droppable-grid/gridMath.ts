@@ -282,6 +282,8 @@ export function normalizeLayoutPositions<T extends {
     const desiredRow = Math.max(1, item.row ?? 1);
     const maxColumnStart = Math.max(1, columns - item.width + 1);
     const desiredColumn = clamp(item.column ?? 1, 1, maxColumnStart);
+    // Keep each item as close as possible to its requested slot, but push it
+    // forward if that slot is already occupied by an earlier item.
     const placement = findNextAvailableSlot({
       occupiedCells,
       columns,
@@ -330,6 +332,8 @@ export function moveItemToGridSlot<T extends {
     return layout;
   }
 
+  // Give the actively moved item priority at the requested slot, then reflow
+  // every other item around it.
   const prioritizedLayout = [
     {
       ...movedItem,
@@ -379,6 +383,7 @@ export function getGridSlotFromPointer(args: {
   const columnWidth = innerWidth / columns;
   const columnStride = columnWidth + gap;
   const rowStride = rowHeight + gap;
+  // Convert the pointer into a coarse row/column address in the visible grid.
   const relativeX = clamp(clientX - containerRect.left - padding, 0, innerWidth);
   const relativeY = clamp(
     clientY - containerRect.top - padding,
@@ -403,6 +408,8 @@ function findNextAvailableSlot(args: {
 }): { row: number; column: number } {
   const { occupiedCells, columns, width, startRow, startColumn } = args;
 
+  // Search from the desired slot outward so items preserve intentional gaps
+  // whenever possible instead of always collapsing back to row 1 / column 1.
   for (let row = startRow; row < startRow + 500; row += 1) {
     const firstColumn = row === startRow ? startColumn : 1;
     const lastColumn = Math.max(1, columns - width + 1);
