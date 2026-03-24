@@ -69,15 +69,19 @@ export function DraggableGridCell(
       className={itemClassName}
       sx={{
         position: 'relative',
-        zIndex: 1,
+        zIndex: isDragging ? 4 : 1,
         minWidth: 0,
         alignSelf: 'start',
         gridColumn: `${columnStart} / span ${clampedWidth}`,
         gridRow: `${rowStart}`,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
-        opacity: isDragging ? 0.35 : 1,
-        transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
+        opacity: isDragging ? 0.92 : 1,
+        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+        filter: isDragging
+          ? `drop-shadow(0 10px 20px ${alpha(theme.palette.common.black, 0.18)})`
+          : 'none',
+        transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms ease, filter ${Math.min(animationMs, 120)}ms ease`,
       }}
     >
       {children}

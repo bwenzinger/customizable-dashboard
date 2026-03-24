@@ -40,6 +40,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const {
     layout,
     onLayoutChanged,
+    onLayoutCommitted,
     renderItem,
     columns = 3,
     initialRowCount = 6,
@@ -88,6 +89,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const hoverPreviewTimeoutRef = useRef<number | null>(null);
+  const hoverPreviewKeyRef = useRef<string | null>(null);
 
   const renderedLayout =
     (draggingId !== null || resizeState !== null) && draftLayout !== null
@@ -240,6 +243,21 @@ export function DraggableGrid<T extends DraggableGridItem>(
     };
 
     const finishResize = () => {
+      const finalLayout = normalizeLayoutPositions(
+        draftLayout ?? layout,
+        resolvedColumns
+      );
+
+      if (
+        !haveSameGridLayout(resizeState.layoutAtResizeStart, finalLayout)
+      ) {
+        onLayoutCommitted?.(
+          finalLayout,
+          resizeState.layoutAtResizeStart,
+          'itemResize'
+        );
+      }
+
       isResizingRef.current = false;
       setResizeState(null);
     };
@@ -251,7 +269,15 @@ export function DraggableGrid<T extends DraggableGridItem>(
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', finishResize);
     };
-  }, [gap, onLayoutChanged, resizeState, resolvedColumns]);
+  }, [
+    draftLayout,
+    gap,
+    layout,
+    onLayoutChanged,
+    onLayoutCommitted,
+    resizeState,
+    resolvedColumns,
+  ]);
 
   useEffect(() => {
     if (!gridResizeState) {
@@ -315,7 +341,17 @@ export function DraggableGrid<T extends DraggableGridItem>(
       event.dataTransfer.setData('text/plain', itemId);
     };
 
+  const clearHoverPreview = useCallback(() => {
+    if (hoverPreviewTimeoutRef.current !== null) {
+      window.clearTimeout(hoverPreviewTimeoutRef.current);
+      hoverPreviewTimeoutRef.current = null;
+    }
+
+    hoverPreviewKeyRef.current = null;
+  }, []);
+
   const finishDrag = () => {
+    clearHoverPreview();
     dragPointerOffsetRef.current = null;
     setDraggingId(null);
     setDraftLayout(null);
@@ -324,6 +360,61 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const handleDragEnd = () => {
     finishDrag();
   };
+
+  const getLayoutForPointer = useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      sourceLayout: T[]
+    ): { nextLayout: T[]; hoverKey: string } | null => {
+      const activeDraggingId = draggingId;
+      const containerElement = containerRef.current;
+
+      if (!activeDraggingId || !containerElement) {
+        return null;
+      }
+
+      const draggingItem = sourceLayout.find(
+        (item) => item.id === activeDraggingId
+      );
+
+      if (!draggingItem) {
+        return null;
+      }
+
+      const slot = getGridSlotFromPointer({
+        clientX: clientX - (dragPointerOffsetRef.current?.x ?? 0) + 1,
+        clientY: clientY - (dragPointerOffsetRef.current?.y ?? 0) + 1,
+        containerRect: containerElement.getBoundingClientRect(),
+        columns: resolvedColumns,
+        rowCount: resolvedRowCount,
+        rowHeight,
+        gap,
+        padding: containerPadding,
+        itemWidth: draggingItem.width,
+      });
+      const nextLayout = moveItemToGridSlot({
+        layout: sourceLayout,
+        itemId: activeDraggingId,
+        row: slot.row,
+        column: slot.column,
+        columns: resolvedColumns,
+      });
+
+      return {
+        nextLayout,
+        hoverKey: `${activeDraggingId}:${slot.row}:${slot.column}:${draggingItem.width}`,
+      };
+    },
+    [
+      containerPadding,
+      draggingId,
+      gap,
+      resolvedColumns,
+      resolvedRowCount,
+      rowHeight,
+    ]
+  );
 
   const handleContainerDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -336,51 +427,70 @@ export function DraggableGrid<T extends DraggableGridItem>(
     const activeDraggingId = draggingId;
     const currentDraftLayout =
       draggingId !== null && draftLayout !== null ? draftLayout : layout;
-    const containerElement = containerRef.current;
-
-    if (!activeDraggingId || !containerElement) {
-      return;
-    }
-
-    const draggingItem = currentDraftLayout.find(
-      (item) => item.id === activeDraggingId
+    const hoverResult = getLayoutForPointer(
+      event.clientX,
+      event.clientY,
+      currentDraftLayout
     );
 
-    if (!draggingItem) {
+    if (!activeDraggingId || !hoverResult) {
       return;
     }
-
-    const slot = getGridSlotFromPointer({
-      clientX:
-        event.clientX - (dragPointerOffsetRef.current?.x ?? 0) + 1,
-      clientY:
-        event.clientY - (dragPointerOffsetRef.current?.y ?? 0) + 1,
-      containerRect: containerElement.getBoundingClientRect(),
-      columns: resolvedColumns,
-      rowCount: resolvedRowCount,
-      rowHeight,
-      gap,
-      padding: containerPadding,
-      itemWidth: draggingItem.width,
-    });
-    const nextLayout = moveItemToGridSlot({
-      layout: currentDraftLayout,
-      itemId: activeDraggingId,
-      row: slot.row,
-      column: slot.column,
-      columns: resolvedColumns,
-    });
+    const { nextLayout, hoverKey } = hoverResult;
 
     if (haveSameGridLayout(currentDraftLayout, nextLayout)) {
+      clearHoverPreview();
       return;
     }
 
-    setDraftLayout(nextLayout);
-    onLayoutChanged(nextLayout);
+    if (hoverPreviewKeyRef.current === hoverKey) {
+      return;
+    }
+
+    clearHoverPreview();
+    hoverPreviewKeyRef.current = hoverKey;
+    hoverPreviewTimeoutRef.current = window.setTimeout(() => {
+      setDraftLayout((currentValue) => {
+        const sourceLayout = currentValue ?? layout;
+        const latestHoverResult = getLayoutForPointer(
+          event.clientX,
+          event.clientY,
+          sourceLayout
+        );
+
+        if (!latestHoverResult) {
+          return currentValue;
+        }
+
+        return haveSameGridLayout(sourceLayout, latestHoverResult.nextLayout)
+          ? currentValue
+          : latestHoverResult.nextLayout;
+      });
+      hoverPreviewTimeoutRef.current = null;
+    }, 500);
   };
 
   const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    clearHoverPreview();
+
+    const sourceLayout =
+      draggingId !== null && draftLayout !== null ? draftLayout : layout;
+    const hoverResult = getLayoutForPointer(
+      event.clientX,
+      event.clientY,
+      sourceLayout
+    );
+    const committedLayout = normalizeLayoutPositions(
+      hoverResult?.nextLayout ?? sourceLayout,
+      resolvedColumns
+    );
+
+    if (!haveSameGridLayout(layout, committedLayout)) {
+      onLayoutChanged(committedLayout);
+      onLayoutCommitted?.(committedLayout, layout, 'drop');
+    }
+
     finishDrag();
   };
 

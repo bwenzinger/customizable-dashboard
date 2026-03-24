@@ -18,6 +18,11 @@ export type DraggableGridItem = {
 export type DraggableGridProps<T extends DraggableGridItem> = {
   layout: T[];
   onLayoutChanged: (nextLayout: T[]) => void;
+  onLayoutCommitted?: (
+    nextLayout: T[],
+    previousLayout: T[],
+    reason: 'drop' | 'itemResize'
+  ) => void;
   renderItem: (item: T, index: number, isDragging: boolean) => ReactNode;
   columns?: number | DraggableGridResponsiveColumns;
   initialRowCount?: number;

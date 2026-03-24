@@ -1,8 +1,16 @@
-import { useState } from 'react';
-import { Box, Card, CardContent, Typography, useTheme } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  useTheme,
+} from '@mui/material';
 
 import {
   DraggableGrid,
+  type DraggableGridProps,
   type DraggableGridItem,
 } from './drag-and-droppable-grid/DraggableGrid';
 
@@ -22,6 +30,56 @@ const initialLayout: Tile[] = [
 function App() {
   const theme = useTheme();
   const [layout, setLayout] = useState<Tile[]>(initialLayout);
+  const [layoutHistory, setLayoutHistory] = useState<Tile[][]>([]);
+
+  const handleLayoutChanged = useCallback((nextLayout: Tile[]) => {
+    setLayout(nextLayout);
+  }, []);
+
+  const handleLayoutCommitted = useCallback<
+    NonNullable<DraggableGridProps<Tile>['onLayoutCommitted']>
+  >((nextLayout, previousLayout) => {
+    if (haveSameLayout(previousLayout, nextLayout)) {
+      return;
+    }
+
+    setLayoutHistory((currentHistory) => [...currentHistory, previousLayout]);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    setLayoutHistory((currentHistory) => {
+      const previousLayout = currentHistory.at(-1);
+
+      if (!previousLayout) {
+        return currentHistory;
+      }
+
+      setLayout(previousLayout);
+
+      return currentHistory.slice(0, -1);
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+
+      if (event.key.toLowerCase() !== 'z' || event.shiftKey) {
+        return;
+      }
+
+      event.preventDefault();
+      handleUndo();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo]);
 
   return (
     <Box
@@ -29,11 +87,37 @@ function App() {
         height: '100vh',
         width: '100vw',
         boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 10,
+        }}
+      >
+        <Button
+          variant="contained"
+          color="inherit"
+          onClick={handleUndo}
+          disabled={layoutHistory.length === 0}
+          sx={{
+            borderRadius: 999,
+            px: 2,
+            boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+            backgroundColor: '#ffffff',
+          }}
+        >
+          Undo
+        </Button>
+      </Box>
+
       <DraggableGrid<Tile>
         layout={layout}
-        onLayoutChanged={setLayout}
+        onLayoutChanged={handleLayoutChanged}
+        onLayoutCommitted={handleLayoutCommitted}
         columns={10}
         gap={16}
         // showGridlines={true}
@@ -69,3 +153,22 @@ function App() {
 }
 
 export default App;
+
+function haveSameLayout(first: Tile[], second: Tile[]): boolean {
+  return (
+    first.length === second.length &&
+    first.every((item, index) => {
+      const candidate = second[index];
+
+      return (
+        item.id === candidate?.id &&
+        item.width === candidate.width &&
+        item.minWidth === candidate.minWidth &&
+        item.maxWidth === candidate.maxWidth &&
+        item.row === candidate.row &&
+        item.column === candidate.column &&
+        item.title === candidate.title
+      );
+    })
+  );
+}
