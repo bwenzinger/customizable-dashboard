@@ -1,0 +1,46 @@
+Project preferences for this codebase:
+
+- Always make code changes fully functional and production-ready.
+- Do not leave TypeScript, ESLint, or React hook/compiler errors behind.
+- After changes, validate with the relevant checks and tell me if anything could not be run.
+- Add code comments anywhere the logic is non-obvious.
+- Prefer comments that explain why something exists or how a tricky flow works, not obvious line-by-line narration.
+- Continue prioritizing comments in future edits unless I say otherwise.
+
+Draggable grid behavior preferences:
+
+- The grid should feel natural and human-friendly, not overly strict.
+- Users should be able to freely move items around the screen.
+- Open spaces should be valid placement targets.
+- The layout should not always collapse up and to the left.
+- Dragging should use explicit placement behavior rather than only order-based dense packing.
+- The drag location should feel anchored to where the user grabbed the card, not to the card’s left edge.
+- Dragging over items should feel soft and exploratory.
+- Other items should not immediately move just because the pointer passed over them.
+- Preview movement should only happen after the dragged item has been held in place briefly (about 0.5s).
+- Final layout changes should commit on drop, not during transient drag-over states.
+- Dragging should have a clear floating visual state while moving.
+
+Resize/grid preferences:
+
+- Item resize-handle interactions should feel intentional and easy to understand.
+- The item resize handle should stay visually inside the card.
+- The resize handle style should be modern and subtle.
+- The overall grid should support a resizable number of rows with visible empty space.
+- A bottom handle for increasing/decreasing total grid rows is desired.
+- Empty rows/space should be preserved as part of the layout model.
+
+Undo/history preferences:
+
+- Support Ctrl+Z / Cmd+Z undo.
+- Also provide an Undo button in the UI.
+- Undo history should only record finalized interactions with a real diff.
+- Drag preview/hover states should not be added to undo history.
+- Drop commits should be added to history.
+- Drag-handle resize commits with a real diff should also be added to history.
+
+General collaboration preferences:
+
+- If something seems worth explaining, add a code comment.
+- When a behavior is tricky, prefer clear structure and readability over cleverness.
+- If a design/interaction model is fundamentally fighting the desired UX, prefer rethinking the model instead of patching it repeatedly.
