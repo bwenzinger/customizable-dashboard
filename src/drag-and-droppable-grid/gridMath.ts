@@ -67,6 +67,85 @@ export function shouldReorderOnOverlap(args: {
   return clientY <= targetRect.bottom - threshold;
 }
 
+export function findReorderIndexFromPointer<T extends { id: string }>(args: {
+  items: T[];
+  draggingId: string;
+  rectByItemId: Map<string, DOMRect>;
+  clientX: number;
+  clientY: number;
+}): number | null {
+  const { items, draggingId, rectByItemId, clientX, clientY } = args;
+  const rowTolerancePx = 8;
+  const visualItems = items
+    .filter((item) => item.id !== draggingId)
+    .map((item, index) => {
+      const rect = rectByItemId.get(item.id);
+
+      if (!rect) {
+        return null;
+      }
+
+      return {
+        itemId: item.id,
+        index,
+        rect,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((first, second) => {
+      const topDelta = first.rect.top - second.rect.top;
+
+      if (Math.abs(topDelta) > rowTolerancePx) {
+        return topDelta;
+      }
+
+      return first.rect.left - second.rect.left;
+    });
+
+  if (visualItems.length === 0) {
+    return null;
+  }
+
+  const rows: Array<typeof visualItems> = [];
+
+  visualItems.forEach((item) => {
+    const lastRow = rows.at(-1);
+
+    if (
+      !lastRow ||
+      Math.abs(lastRow[0].rect.top - item.rect.top) > rowTolerancePx
+    ) {
+      rows.push([item]);
+      return;
+    }
+
+    lastRow.push(item);
+  });
+
+  for (const row of rows) {
+    const rowTop = Math.min(...row.map((item) => item.rect.top));
+    const rowBottom = Math.max(...row.map((item) => item.rect.bottom));
+
+    if (clientY < rowTop) {
+      return items.findIndex((item) => item.id === row[0].itemId);
+    }
+
+    if (clientY <= rowBottom) {
+      for (const item of row) {
+        if (clientX < item.rect.left + item.rect.width / 2) {
+          return items.findIndex((entry) => entry.id === item.itemId);
+        }
+      }
+
+      const lastItem = row[row.length - 1];
+
+      return items.findIndex((entry) => entry.id === lastItem.itemId) + 1;
+    }
+  }
+
+  return items.length - 1;
+}
+
 function hasMeaningfulVerticalOverlap(
   firstRect: DOMRect,
   secondRect: DOMRect
@@ -187,6 +266,202 @@ export function normalizeLayoutWidths<T extends {
       width: normalizedWidth,
     };
   });
+}
+
+export function normalizeLayoutPositions<T extends {
+  id: string;
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  row?: number;
+  column?: number;
+}>(layout: T[], columns: number): T[] {
+  const occupiedCells = new Set<string>();
+
+  return normalizeLayoutWidths(layout, columns).map((item) => {
+    const desiredRow = Math.max(1, item.row ?? 1);
+    const maxColumnStart = Math.max(1, columns - item.width + 1);
+    const desiredColumn = clamp(item.column ?? 1, 1, maxColumnStart);
+    const placement = findNextAvailableSlot({
+      occupiedCells,
+      columns,
+      width: item.width,
+      startRow: desiredRow,
+      startColumn: desiredColumn,
+    });
+
+    markOccupiedCells({
+      occupiedCells,
+      row: placement.row,
+      column: placement.column,
+      width: item.width,
+    });
+
+    if (item.row === placement.row && item.column === placement.column) {
+      return item;
+    }
+
+    return {
+      ...item,
+      row: placement.row,
+      column: placement.column,
+    };
+  });
+}
+
+export function moveItemToGridSlot<T extends {
+  id: string;
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  row?: number;
+  column?: number;
+}>(args: {
+  layout: T[];
+  itemId: string;
+  row: number;
+  column: number;
+  columns: number;
+}): T[] {
+  const { layout, itemId, row, column, columns } = args;
+  const movedItem = layout.find((item) => item.id === itemId);
+
+  if (!movedItem) {
+    return layout;
+  }
+
+  const prioritizedLayout = [
+    {
+      ...movedItem,
+      row,
+      column,
+    },
+    ...layout.filter((item) => item.id !== itemId),
+  ];
+  const resolvedLayout = normalizeLayoutPositions(prioritizedLayout, columns);
+  const resolvedById = new Map(
+    resolvedLayout.map((item) => [item.id, item] as const)
+  );
+
+  return layout.map((item) => resolvedById.get(item.id) ?? item);
+}
+
+export function getRequiredRowCount<T extends { row?: number }>(
+  layout: T[]
+): number {
+  return layout.reduce((maxRow, item) => Math.max(maxRow, item.row ?? 1), 1);
+}
+
+export function getGridSlotFromPointer(args: {
+  clientX: number;
+  clientY: number;
+  containerRect: DOMRect;
+  columns: number;
+  rowCount: number;
+  rowHeight: number;
+  gap: number;
+  padding: number;
+  itemWidth: number;
+}): { row: number; column: number } {
+  const {
+    clientX,
+    clientY,
+    containerRect,
+    columns,
+    rowCount,
+    rowHeight,
+    gap,
+    padding,
+    itemWidth,
+  } = args;
+  const innerWidth =
+    containerRect.width - padding * 2 - gap * Math.max(0, columns - 1);
+  const columnWidth = innerWidth / columns;
+  const columnStride = columnWidth + gap;
+  const rowStride = rowHeight + gap;
+  const relativeX = clamp(clientX - containerRect.left - padding, 0, innerWidth);
+  const relativeY = clamp(
+    clientY - containerRect.top - padding,
+    0,
+    rowStride * Math.max(1, rowCount) - gap
+  );
+  const rawColumn = Math.floor(relativeX / columnStride) + 1;
+  const rawRow = Math.floor(relativeY / rowStride) + 1;
+
+  return {
+    row: clamp(rawRow, 1, rowCount),
+    column: clamp(rawColumn, 1, Math.max(1, columns - itemWidth + 1)),
+  };
+}
+
+function findNextAvailableSlot(args: {
+  occupiedCells: Set<string>;
+  columns: number;
+  width: number;
+  startRow: number;
+  startColumn: number;
+}): { row: number; column: number } {
+  const { occupiedCells, columns, width, startRow, startColumn } = args;
+
+  for (let row = startRow; row < startRow + 500; row += 1) {
+    const firstColumn = row === startRow ? startColumn : 1;
+    const lastColumn = Math.max(1, columns - width + 1);
+
+    for (let column = firstColumn; column <= lastColumn; column += 1) {
+      if (
+        canPlaceItem({
+          occupiedCells,
+          row,
+          column,
+          width,
+        })
+      ) {
+        return {
+          row,
+          column,
+        };
+      }
+    }
+  }
+
+  return {
+    row: startRow,
+    column: startColumn,
+  };
+}
+
+function canPlaceItem(args: {
+  occupiedCells: Set<string>;
+  row: number;
+  column: number;
+  width: number;
+}): boolean {
+  const { occupiedCells, row, column, width } = args;
+
+  for (let offset = 0; offset < width; offset += 1) {
+    if (occupiedCells.has(getOccupiedCellKey(row, column + offset))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function markOccupiedCells(args: {
+  occupiedCells: Set<string>;
+  row: number;
+  column: number;
+  width: number;
+}): void {
+  const { occupiedCells, row, column, width } = args;
+
+  for (let offset = 0; offset < width; offset += 1) {
+    occupiedCells.add(getOccupiedCellKey(row, column + offset));
+  }
+}
+
+function getOccupiedCellKey(row: number, column: number): string {
+  return `${row}:${column}`;
 }
 
 export function resolveColumns(args: {

@@ -8,6 +8,8 @@ import type {
 
 type DraggableGridCellProps = {
   itemId: string;
+  rowStart: number;
+  columnStart: number;
   clampedWidth: number;
   isDragging: boolean;
   isResizeDisabled: boolean;
@@ -37,6 +39,8 @@ export function DraggableGridCell(
   const theme = useTheme();
   const {
     itemId,
+    rowStart,
+    columnStart,
     clampedWidth,
     isDragging,
     isResizeDisabled,
@@ -67,7 +71,8 @@ export function DraggableGridCell(
         position: 'relative',
         zIndex: 1,
         minWidth: 0,
-        gridColumn: `span ${clampedWidth}`,
+        gridColumn: `${columnStart} / span ${clampedWidth}`,
+        gridRow: `${rowStart}`,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         opacity: isDragging ? 0.35 : 1,

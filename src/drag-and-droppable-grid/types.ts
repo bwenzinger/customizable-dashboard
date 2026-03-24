@@ -11,6 +11,8 @@ export type DraggableGridItem = {
   width: number;
   minWidth: number;
   maxWidth: number;
+  row?: number;
+  column?: number;
 };
 
 export type DraggableGridProps<T extends DraggableGridItem> = {
@@ -18,6 +20,9 @@ export type DraggableGridProps<T extends DraggableGridItem> = {
   onLayoutChanged: (nextLayout: T[]) => void;
   renderItem: (item: T, index: number, isDragging: boolean) => ReactNode;
   columns?: number | DraggableGridResponsiveColumns;
+  initialRowCount?: number;
+  minRowCount?: number;
+  rowHeight?: number;
   showGridlines?: boolean;
   gap?: number;
   className?: string;
@@ -38,4 +43,9 @@ export type ResizeState<T extends DraggableGridItem> = {
   startClientX: number;
   startWidth: number;
   layoutAtResizeStart: T[];
+} | null;
+
+export type GridResizeState = {
+  startClientY: number;
+  startRowCount: number;
 } | null;

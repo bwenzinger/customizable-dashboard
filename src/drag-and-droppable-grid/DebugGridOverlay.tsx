@@ -9,8 +9,8 @@ type DebugGridOverlayProps = {
   resolvedColumns: number;
   activeBreakpoint: DraggableGridBreakpoint;
   rowCount: number;
-  rowBoundaries: number[];
-  gridHeight: number;
+  rowHeight: number;
+  gap: number;
   containerPadding: number;
 };
 
@@ -30,10 +30,11 @@ export function DebugGridOverlay(
     resolvedColumns,
     activeBreakpoint,
     rowCount,
-    rowBoundaries,
-    gridHeight,
+    rowHeight,
+    gap,
     containerPadding,
   } = props;
+  const gridHeight = rowCount * rowHeight + Math.max(0, rowCount - 1) * gap;
 
   if (resolvedColumns < 1 || rowCount < 1 || gridHeight <= 0) {
     return null;
@@ -80,14 +81,14 @@ export function DebugGridOverlay(
         />
       ))}
 
-      {rowBoundaries.slice(0, -1).map((boundary, index) => (
+      {Array.from({ length: Math.max(0, rowCount - 1) }, (_, index) => (
         <Box
           key={`row-${index + 1}`}
           sx={{
             position: 'absolute',
             right: 0,
             left: 0,
-            top: `${boundary}px`,
+            top: `${(index + 1) * rowHeight + index * gap}px`,
             height: '1px',
             bgcolor: 'rgba(32, 78, 54, 0.45)',
           }}
