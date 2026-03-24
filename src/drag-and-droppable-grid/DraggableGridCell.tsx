@@ -71,6 +71,7 @@ export function DraggableGridCell(
         position: 'relative',
         zIndex: 1,
         minWidth: 0,
+        alignSelf: 'start',
         gridColumn: `${columnStart} / span ${clampedWidth}`,
         gridRow: `${rowStart}`,
         cursor: isDragging ? 'grabbing' : 'grab',
