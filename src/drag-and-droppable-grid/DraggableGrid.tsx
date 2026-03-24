@@ -89,8 +89,6 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
-  const hoverPreviewTimeoutRef = useRef<number | null>(null);
-  const hoverPreviewKeyRef = useRef<string | null>(null);
 
   const renderedLayout =
     (draggingId !== null || resizeState !== null) && draftLayout !== null
@@ -358,17 +356,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       event.dataTransfer.setData('text/plain', itemId);
     };
 
-  const clearHoverPreview = useCallback(() => {
-    if (hoverPreviewTimeoutRef.current !== null) {
-      window.clearTimeout(hoverPreviewTimeoutRef.current);
-      hoverPreviewTimeoutRef.current = null;
-    }
-
-    hoverPreviewKeyRef.current = null;
-  }, []);
-
   const finishDrag = () => {
-    clearHoverPreview();
     dragPointerOffsetRef.current = null;
     setDraggingId(null);
     setDraftLayout(null);
@@ -383,7 +371,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       clientX: number,
       clientY: number,
       sourceLayout: T[]
-    ): { nextLayout: T[]; hoverKey: string } | null => {
+    ): T[] | null => {
       const activeDraggingId = draggingId;
       const containerElement = containerRef.current;
 
@@ -412,18 +400,13 @@ export function DraggableGrid<T extends DraggableGridItem>(
         padding: containerPadding,
         itemWidth: draggingItem.width,
       });
-      const nextLayout = moveItemToGridSlot({
+      return moveItemToGridSlot({
         layout: sourceLayout,
         itemId: activeDraggingId,
         row: slot.row,
         column: slot.column,
         columns: resolvedColumns,
       });
-
-      return {
-        nextLayout,
-        hoverKey: `${activeDraggingId}:${slot.row}:${slot.column}:${draggingItem.width}`,
-      };
     },
     [
       containerPadding,
@@ -446,54 +429,25 @@ export function DraggableGrid<T extends DraggableGridItem>(
     const activeDraggingId = draggingId;
     const currentDraftLayout =
       draggingId !== null && draftLayout !== null ? draftLayout : layout;
-    const hoverResult = getLayoutForPointer(
+    const nextLayout = getLayoutForPointer(
       event.clientX,
       event.clientY,
       currentDraftLayout
     );
 
-    if (!activeDraggingId || !hoverResult) {
+    if (!activeDraggingId || !nextLayout) {
       return;
     }
-    const { nextLayout, hoverKey } = hoverResult;
 
     if (haveSameGridLayout(currentDraftLayout, nextLayout)) {
-      clearHoverPreview();
       return;
     }
 
-    if (hoverPreviewKeyRef.current === hoverKey) {
-      return;
-    }
-
-    // Only preview a move after hovering over the same target for a short time.
-    // This keeps "passing over" another card from immediately reshuffling it.
-    clearHoverPreview();
-    hoverPreviewKeyRef.current = hoverKey;
-    hoverPreviewTimeoutRef.current = window.setTimeout(() => {
-      setDraftLayout((currentValue) => {
-        const sourceLayout = currentValue ?? layout;
-        const latestHoverResult = getLayoutForPointer(
-          event.clientX,
-          event.clientY,
-          sourceLayout
-        );
-
-        if (!latestHoverResult) {
-          return currentValue;
-        }
-
-        return haveSameGridLayout(sourceLayout, latestHoverResult.nextLayout)
-          ? currentValue
-          : latestHoverResult.nextLayout;
-      });
-      hoverPreviewTimeoutRef.current = null;
-    }, 0);
+    setDraftLayout(nextLayout);
   };
 
   const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    clearHoverPreview();
 
     const sourceLayout =
       draggingId !== null && draftLayout !== null ? draftLayout : layout;
@@ -503,7 +457,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       sourceLayout
     );
     const committedLayout = normalizeLayoutPositions(
-      hoverResult?.nextLayout ?? sourceLayout,
+      hoverResult ?? sourceLayout,
       resolvedColumns
     );
 
