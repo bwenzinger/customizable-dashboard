@@ -152,6 +152,43 @@ export function clamp(
   return Math.min(Math.max(value, minValue), maxValue);
 }
 
+export function normalizeItemWidth(args: {
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+  columns: number;
+}): number {
+  const { width, minWidth, maxWidth, columns } = args;
+  const maxAllowedWidth = Math.max(1, Math.min(maxWidth, columns));
+  const minAllowedWidth = Math.min(Math.max(1, minWidth), maxAllowedWidth);
+
+  return clamp(width, minAllowedWidth, maxAllowedWidth);
+}
+
+export function normalizeLayoutWidths<T extends {
+  width: number;
+  minWidth: number;
+  maxWidth: number;
+}>(layout: T[], columns: number): T[] {
+  return layout.map((item) => {
+    const normalizedWidth = normalizeItemWidth({
+      width: item.width,
+      minWidth: item.minWidth,
+      maxWidth: item.maxWidth,
+      columns,
+    });
+
+    if (normalizedWidth === item.width) {
+      return item;
+    }
+
+    return {
+      ...item,
+      width: normalizedWidth,
+    };
+  });
+}
+
 export function resolveColumns(args: {
   columns: number | DraggableGridResponsiveColumns;
   matches: Record<DraggableGridBreakpoint, boolean>;

@@ -11,10 +11,11 @@ import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { DraggableGridCell } from './DraggableGridCell';
 import {
   getActiveBreakpoint,
-  clamp,
   expandRect,
   getResizedColumnSpan,
   isPointWithinRect,
+  normalizeItemWidth,
+  normalizeLayoutWidths,
   reorderItems,
   resolveColumns,
   shouldReorderOnOverlap,
@@ -95,6 +96,21 @@ export function DraggableGrid<T extends DraggableGridItem>(
     (draggingId !== null || isResizing) && draftLayout !== null
       ? draftLayout
       : layout;
+  const normalizedRenderedLayout = normalizeLayoutWidths(
+    renderedLayout,
+    resolvedColumns
+  );
+
+  useEffect(() => {
+    const normalizedLayout = normalizeLayoutWidths(layout, resolvedColumns);
+    const hasInvalidWidth = normalizedLayout.some(
+      (item, index) => item.width !== layout[index]?.width
+    );
+
+    if (hasInvalidWidth) {
+      onLayoutChanged(normalizedLayout);
+    }
+  }, [layout, onLayoutChanged, resolvedColumns]);
 
   useLayoutEffect(() => {
     if (!showGridlines) {
@@ -110,7 +126,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     const measureGrid = () => {
       const rowBottomByTop = new Map<number, number>();
 
-      renderedLayout.forEach((item) => {
+      normalizedRenderedLayout.forEach((item) => {
         const element = itemRefs.current.get(item.id);
 
         if (!element) {
@@ -130,10 +146,18 @@ export function DraggableGrid<T extends DraggableGridItem>(
       const rowBoundaries = sortedRowTops.map((rowTop) => rowBottomByTop.get(rowTop)!);
       const gridHeight = rowBoundaries.at(-1) ?? 0;
 
-      setDebugGridMetrics({
-        rowBoundaries,
-        rowCount: sortedRowTops.length,
-        gridHeight,
+      setDebugGridMetrics((previousMetrics) => {
+        const nextMetrics = {
+          rowBoundaries,
+          rowCount: sortedRowTops.length,
+          gridHeight,
+        };
+
+        if (areDebugGridMetricsEqual(previousMetrics, nextMetrics)) {
+          return previousMetrics;
+        }
+
+        return nextMetrics;
       });
     };
 
@@ -152,7 +176,12 @@ export function DraggableGrid<T extends DraggableGridItem>(
     return () => {
       resizeObserver.disconnect();
     };
-  }, [containerPadding, renderedLayout, resolvedColumns, showGridlines]);
+  }, [
+    containerPadding,
+    normalizedRenderedLayout,
+    resolvedColumns,
+    showGridlines,
+  ]);
 
   useLayoutEffect(() => {
     // Capture item positions after each layout change so non-dragged items can
@@ -160,7 +189,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     const nextRects = new Map<string, DOMRect>();
     const frameIds: number[] = [];
 
-    renderedLayout.forEach((item) => {
+    normalizedRenderedLayout.forEach((item) => {
       if (item.id === draggingId) {
         return;
       }
@@ -229,7 +258,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         window.cancelAnimationFrame(frameId);
       });
     };
-  }, [animationMs, draggingId, isResizing, renderedLayout]);
+  }, [animationMs, draggingId, isResizing, normalizedRenderedLayout]);
 
   useEffect(() => {
     if (!resizeState) {
@@ -258,9 +287,12 @@ export function DraggableGrid<T extends DraggableGridItem>(
           return item;
         }
 
-        const maxAllowedWidth = Math.min(item.maxWidth, resolvedColumns);
-        const minAllowedWidth = Math.max(1, item.minWidth);
-        const clampedWidth = clamp(nextWidth, minAllowedWidth, maxAllowedWidth);
+        const clampedWidth = normalizeItemWidth({
+          width: nextWidth,
+          minWidth: item.minWidth,
+          maxWidth: item.maxWidth,
+          columns: resolvedColumns,
+        });
 
         if (clampedWidth === item.width) {
           return item;
@@ -303,7 +335,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     []
   );
 
-  const handleDragStart = useCallback(
+  const handleDragStart =
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
       if (resizeState || isResizingRef.current) {
         event.preventDefault();
@@ -311,24 +343,22 @@ export function DraggableGrid<T extends DraggableGridItem>(
       }
 
       setDraggingId(itemId);
-      setDraftLayout(layout);
+      setDraftLayout(normalizeLayoutWidths(layout, resolvedColumns));
       reorderLockRef.current = null;
 
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', itemId);
-    },
-    [layout, resizeState]
-  );
+    };
 
-  const finishDrag = useCallback(() => {
+  const finishDrag = () => {
     setDraggingId(null);
     setDraftLayout(null);
     reorderLockRef.current = null;
-  }, []);
+  };
 
-  const handleDragEnd = useCallback(() => {
+  const handleDragEnd = () => {
     finishDrag();
-  }, [finishDrag]);
+  };
 
   const handleContainerDragOver = useCallback(
     (event: ReactDragEvent<HTMLDivElement>) => {
@@ -358,15 +388,12 @@ export function DraggableGrid<T extends DraggableGridItem>(
     []
   );
 
-  const handleContainerDrop = useCallback(
-    (event: ReactDragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      finishDrag();
-    },
-    [finishDrag]
-  );
+  const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    finishDrag();
+  };
 
-  const handleItemDragOver = useCallback(
+  const handleItemDragOver =
     (targetItemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
       event.preventDefault();
 
@@ -433,11 +460,9 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       setDraftLayout(nextLayout);
       onLayoutChanged(nextLayout);
-    },
-    [draftLayout, draggingId, layout, onLayoutChanged, resizeState]
-  );
+    };
 
-  const handleResizeMouseDown = useCallback(
+  const handleResizeMouseDown =
     (item: T) => (event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
@@ -445,18 +470,21 @@ export function DraggableGrid<T extends DraggableGridItem>(
       isResizingRef.current = true;
       setDraggingId(null);
       reorderLockRef.current = null;
-      setDraftLayout(renderedLayout);
+      setDraftLayout(normalizedRenderedLayout);
       // Store the current rendered layout as the resize baseline so mouse
       // movement is measured against the exact visual state the user grabbed.
       setResizeState({
         itemId: item.id,
         startClientX: event.clientX,
-        startWidth: item.width,
-        layoutAtResizeStart: renderedLayout,
+        startWidth: normalizeItemWidth({
+          width: item.width,
+          minWidth: item.minWidth,
+          maxWidth: item.maxWidth,
+          columns: resolvedColumns,
+        }),
+        layoutAtResizeStart: normalizedRenderedLayout,
       });
-    },
-    [renderedLayout]
-  );
+    };
 
   return (
     <Box
@@ -492,13 +520,14 @@ export function DraggableGrid<T extends DraggableGridItem>(
         />
       ) : null}
 
-      {renderedLayout.map((item, index) => {
+      {normalizedRenderedLayout.map((item, index) => {
         const isDragging = item.id === draggingId;
-        const clampedWidth = clamp(
-          item.width,
-          item.minWidth,
-          Math.min(item.maxWidth, resolvedColumns)
-        );
+        const clampedWidth = normalizeItemWidth({
+          width: item.width,
+          minWidth: item.minWidth,
+          maxWidth: item.maxWidth,
+          columns: resolvedColumns,
+        });
 
         return (
           <DraggableGridCell
@@ -521,5 +550,30 @@ export function DraggableGrid<T extends DraggableGridItem>(
         );
       })}
     </Box>
+  );
+}
+
+function areDebugGridMetricsEqual(
+  first: {
+    rowBoundaries: number[];
+    rowCount: number;
+    gridHeight: number;
+  },
+  second: {
+    rowBoundaries: number[];
+    rowCount: number;
+    gridHeight: number;
+  }
+): boolean {
+  if (
+    first.rowCount !== second.rowCount ||
+    first.gridHeight !== second.gridHeight ||
+    first.rowBoundaries.length !== second.rowBoundaries.length
+  ) {
+    return false;
+  }
+
+  return first.rowBoundaries.every(
+    (boundary, index) => boundary === second.rowBoundaries[index]
   );
 }
