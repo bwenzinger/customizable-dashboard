@@ -1,4 +1,5 @@
-import { Box } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { Box, useTheme } from '@mui/material';
 import type {
   DragEvent as ReactDragEvent,
   MouseEvent as ReactMouseEvent,
@@ -21,9 +22,19 @@ type DraggableGridCellProps = {
   onResizeMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void;
 };
 
+type ResizeCornerHandleProps = {
+  gripColor: string;
+  activeGripColor: string;
+  isDragging: boolean;
+  animationMs: number;
+  visibleResizeHandleWidth: number;
+  onResizeMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void;
+};
+
 export function DraggableGridCell(
   props: DraggableGridCellProps
 ): React.JSX.Element {
+  const theme = useTheme();
   const {
     itemId,
     clampedWidth,
@@ -39,7 +50,9 @@ export function DraggableGridCell(
     onDragOver,
     onResizeMouseDown,
   } = props;
-  const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 18);
+  const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 24);
+  const gripColor = alpha(theme.palette.text.secondary, 0.42);
+  const activeGripColor = alpha(theme.palette.primary.main, 0.72);
 
   return (
     <Box
@@ -63,44 +76,91 @@ export function DraggableGridCell(
     >
       {children}
 
+      <ResizeCornerHandle
+        gripColor={gripColor}
+        activeGripColor={activeGripColor}
+        isDragging={isDragging}
+        animationMs={animationMs}
+        visibleResizeHandleWidth={visibleResizeHandleWidth}
+        onResizeMouseDown={onResizeMouseDown}
+      />
+    </Box>
+  );
+}
+
+function ResizeCornerHandle(props: ResizeCornerHandleProps): React.JSX.Element {
+  const {
+    gripColor,
+    activeGripColor,
+    isDragging,
+    animationMs,
+    visibleResizeHandleWidth,
+    onResizeMouseDown,
+  } = props;
+  const gripInset = 7;
+  const gripSize = 16;
+
+  return (
+    <Box
+      onMouseDown={onResizeMouseDown}
+      sx={{
+        position: 'absolute',
+        right: 0,
+        bottom: 0,
+        width: `${visibleResizeHandleWidth}px`,
+        height: `${visibleResizeHandleWidth}px`,
+        cursor: 'col-resize',
+        zIndex: 2,
+        borderBottomRightRadius: 'inherit',
+        overflow: 'hidden',
+        transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
+        opacity: isDragging ? 1 : 0.9,
+      }}
+    >
       <Box
-        onMouseDown={onResizeMouseDown}
         sx={{
           position: 'absolute',
-          top: 8,
-          right: 0,
-          bottom: 8,
-          width: `${visibleResizeHandleWidth}px`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'col-resize',
-          zIndex: 2,
-          borderTopLeftRadius: 10,
-          borderBottomLeftRadius: 10,
-          background:
-            'linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.14))',
-          borderLeft: '1px solid rgba(15, 23, 42, 0.12)',
-          transition: `background-color ${Math.min(animationMs, 120)}ms ease`,
+          right: gripInset,
+          bottom: gripInset,
+          width: gripSize,
+          height: gripSize,
         }}
       >
         <Box
+          component="svg"
+          viewBox="0 0 16 16"
+          aria-hidden
           sx={{
-            display: 'grid',
-            gap: '3px',
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            overflow: 'visible',
           }}
         >
-          {Array.from({ length: 5 }, (_, index) => (
-            <Box
-              key={`resize-grip-${index}`}
-              sx={{
-                width: 10,
-                height: '2px',
-                borderRadius: 999,
-                bgcolor: 'rgba(15, 23, 42, 0.45)',
-              }}
-            />
-          ))}
+          <Box
+            component="line"
+            x1="2"
+            y1="14"
+            x2="14"
+            y2="2"
+            sx={{
+              stroke: isDragging ? activeGripColor : gripColor,
+              strokeWidth: 1.5,
+              strokeLinecap: 'round',
+            }}
+          />
+          <Box
+            component="line"
+            x1="8"
+            y1="14"
+            x2="14"
+            y2="8"
+            sx={{
+              stroke: isDragging ? activeGripColor : gripColor,
+              strokeWidth: 1.5,
+              strokeLinecap: 'round',
+            }}
+          />
         </Box>
       </Box>
     </Box>
