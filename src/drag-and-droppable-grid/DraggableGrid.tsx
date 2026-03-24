@@ -87,6 +87,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
+  const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
 
   const renderedLayout =
     (draggingId !== null || resizeState !== null) && draftLayout !== null
@@ -301,6 +302,12 @@ export function DraggableGrid<T extends DraggableGridItem>(
         return;
       }
 
+      const itemRect = event.currentTarget.getBoundingClientRect();
+
+      dragPointerOffsetRef.current = {
+        x: event.clientX - itemRect.left,
+        y: event.clientY - itemRect.top,
+      };
       setDraggingId(itemId);
       setDraftLayout(normalizeLayoutPositions(layout, resolvedColumns));
 
@@ -309,6 +316,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     };
 
   const finishDrag = () => {
+    dragPointerOffsetRef.current = null;
     setDraggingId(null);
     setDraftLayout(null);
   };
@@ -343,8 +351,10 @@ export function DraggableGrid<T extends DraggableGridItem>(
     }
 
     const slot = getGridSlotFromPointer({
-      clientX: event.clientX,
-      clientY: event.clientY,
+      clientX:
+        event.clientX - (dragPointerOffsetRef.current?.x ?? 0) + 1,
+      clientY:
+        event.clientY - (dragPointerOffsetRef.current?.y ?? 0) + 1,
       containerRect: containerElement.getBoundingClientRect(),
       columns: resolvedColumns,
       rowCount: resolvedRowCount,
