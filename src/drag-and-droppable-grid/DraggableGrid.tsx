@@ -99,6 +99,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
       : layout;
 
   useLayoutEffect(() => {
+    // Capture item positions after each layout change so non-dragged items can
+    // animate smoothly from their previous slot into the new one.
     const nextRects = new Map<string, DOMRect>();
     const frameIds: number[] = [];
 
@@ -117,6 +119,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
     });
 
     if (isResizing) {
+      // Resizing updates width continuously, so we skip FLIP transforms and let
+      // the grid settle immediately to avoid fighting the resize interaction.
       nextRects.forEach((_nextRect, itemId) => {
         const element = itemRefs.current.get(itemId);
 
@@ -152,6 +156,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       void element.getBoundingClientRect();
 
+      // On the next frame, remove the offset so CSS animates the item into its
+      // newly computed grid position.
       const frameId = window.requestAnimationFrame(() => {
         element.style.transition = `transform ${animationMs}ms cubic-bezier(0.2, 0, 0, 1)`;
         element.style.transform = 'translate(0px, 0px)';
@@ -189,6 +195,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
         deltaX: event.clientX - resizeState.startClientX,
       });
 
+      // Rebuild the layout from the snapshot taken at resize start so width
+      // changes stay stable even as the parent re-renders during dragging.
       const nextLayout = resizeState.layoutAtResizeStart.map((item) => {
         if (item.id !== resizeState.itemId) {
           return item;
@@ -277,6 +285,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
         return;
       }
 
+      // The lock creates a small dead zone around the last reorder target so a
+      // single overlap doesn't repeatedly reshuffle items while hovering.
       if (
         isPointWithinRect({
           clientX: event.clientX,
@@ -358,6 +368,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       const nextLayout = reorderItems(currentDraftLayout, fromIndex, toIndex);
 
+      // After swapping, require the pointer to leave this expanded target area
+      // before another reorder can happen.
       reorderLockRef.current = expandRect({
         rect: targetRect,
         paddingPx: 8,
@@ -378,6 +390,8 @@ export function DraggableGrid<T extends DraggableGridItem>(
       setDraggingId(null);
       reorderLockRef.current = null;
       setDraftLayout(renderedLayout);
+      // Store the current rendered layout as the resize baseline so mouse
+      // movement is measured against the exact visual state the user grabbed.
       setResizeState({
         itemId: item.id,
         startClientX: event.clientX,
@@ -491,6 +505,8 @@ function shouldReorderOnOverlap(args: {
     );
   }
 
+  // If both items visually occupy the same row, reorder based on horizontal
+  // overlap; otherwise use vertical overlap for cross-row movement.
   const sameRow = hasMeaningfulVerticalOverlap(draggingRect, targetRect);
 
   if (sameRow) {
@@ -576,6 +592,8 @@ function getResizedColumnSpan(args: {
 
   const singleColumnWidth = (containerWidth - gap * (columns - 1)) / columns;
   const strideWidth = singleColumnWidth + gap;
+  // Require a bit of horizontal travel before changing span so minor pointer
+  // jitter does not cause accidental resize jumps.
   const activationPx = Math.min(40, Math.max(20, strideWidth * 0.18));
 
   if (deltaX >= activationPx) {
@@ -613,6 +631,8 @@ function resolveColumns(args: {
     'xs',
   ];
 
+  // Walk from the largest active breakpoint downward so larger layouts can
+  // override smaller ones while still inheriting missing values.
   for (const breakpoint of orderedBreakpoints) {
     if (matches[breakpoint]) {
       const value = getResponsiveValueForBreakpoint({
