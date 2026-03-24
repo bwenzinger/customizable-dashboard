@@ -11,12 +11,12 @@ type Tile = DraggableGridItem & {
 };
 
 const initialLayout: Tile[] = [
-  { id: 'a', title: 'Overview', width: 1, minWidth: 1, maxWidth: 3 },
-  { id: 'b', title: 'Alerts', width: 1, minWidth: 1, maxWidth: 2 },
-  { id: 'c', title: 'Usage', width: 1, minWidth: 1, maxWidth: 3 },
-  { id: 'd', title: 'Cost', width: 1, minWidth: 1, maxWidth: 2 },
-  { id: 'e', title: 'Forecast', width: 1, minWidth: 1, maxWidth: 3 },
-  { id: 'f', title: 'Settings', width: 1, minWidth: 1, maxWidth: 2 },
+  { id: 'a', title: 'Overview', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'b', title: 'Alerts', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'c', title: 'Usage', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'd', title: 'Cost', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'e', title: 'Forecast', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'f', title: 'Settings', width: 1, minWidth: 3, maxWidth: 7 },
 ];
 
 function App() {
@@ -34,7 +34,7 @@ function App() {
       <DraggableGrid<Tile>
         layout={layout}
         onLayoutChanged={setLayout}
-        columns={3}
+        columns={10}
         gap={16}
         renderItem={(item: Tile, _index: number, isDragging: boolean) => (
           <Card

@@ -8,7 +8,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
-import { Box } from '@mui/material';
+import { Box, useMediaQuery, useTheme } from '@mui/material';
+
+export type DraggableGridBreakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+
+export type DraggableGridResponsiveColumns = Partial<
+  Record<DraggableGridBreakpoint, number>
+>;
 
 export type DraggableGridItem = {
   id: string;
@@ -21,7 +27,7 @@ export type DraggableGridProps<T extends DraggableGridItem> = {
   layout: T[];
   onLayoutChanged: (nextLayout: T[]) => void;
   renderItem: (item: T, index: number, isDragging: boolean) => ReactNode;
-  columns?: number;
+  columns?: number | DraggableGridResponsiveColumns;
   gap?: number;
   className?: string;
   itemClassName?: string;
@@ -58,6 +64,24 @@ export function DraggableGrid<T extends DraggableGridItem>(
     resizeHandleWidth = 12,
   } = props;
 
+  const theme = useTheme();
+  const matchesXs = useMediaQuery(theme.breakpoints.up('xs'));
+  const matchesSm = useMediaQuery(theme.breakpoints.up('sm'));
+  const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
+  const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
+  const matchesXl = useMediaQuery(theme.breakpoints.up('xl'));
+
+  const resolvedColumns = resolveColumns({
+    columns,
+    matches: {
+      xs: matchesXs,
+      sm: matchesSm,
+      md: matchesMd,
+      lg: matchesLg,
+      xl: matchesXl,
+    },
+  });
+
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draftLayout, setDraftLayout] = useState<T[] | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState<T>>(null);
@@ -68,8 +92,9 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const reorderLockRef = useRef<ReorderLock>(null);
   const isResizingRef = useRef<boolean>(false);
 
+  const isResizing = resizeState !== null;
   const renderedLayout =
-    (draggingId !== null || resizeState !== null) && draftLayout !== null
+    (draggingId !== null || isResizing) && draftLayout !== null
       ? draftLayout
       : layout;
 
@@ -90,6 +115,22 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       nextRects.set(item.id, element.getBoundingClientRect());
     });
+
+    if (isResizing) {
+      nextRects.forEach((_nextRect, itemId) => {
+        const element = itemRefs.current.get(itemId);
+
+        if (!element) {
+          return;
+        }
+
+        element.style.transition = '';
+        element.style.transform = '';
+      });
+
+      previousRectsRef.current = nextRects;
+      return;
+    }
 
     nextRects.forEach((nextRect, itemId) => {
       const previousRect = previousRectsRef.current.get(itemId);
@@ -126,7 +167,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         window.cancelAnimationFrame(frameId);
       });
     };
-  }, [animationMs, draggingId, renderedLayout]);
+  }, [animationMs, draggingId, isResizing, renderedLayout]);
 
   useEffect(() => {
     if (!resizeState) {
@@ -142,7 +183,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       const nextWidth = getResizedColumnSpan({
         containerWidth: containerElement.getBoundingClientRect().width,
-        columns,
+        columns: resolvedColumns,
         gap,
         startWidth: resizeState.startWidth,
         deltaX: event.clientX - resizeState.startClientX,
@@ -153,7 +194,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
           return item;
         }
 
-        const maxAllowedWidth = Math.min(item.maxWidth, columns);
+        const maxAllowedWidth = Math.min(item.maxWidth, resolvedColumns);
         const minAllowedWidth = Math.max(1, item.minWidth);
         const clampedWidth = clamp(nextWidth, minAllowedWidth, maxAllowedWidth);
 
@@ -184,7 +225,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', finishResize);
     };
-  }, [columns, gap, onLayoutChanged, resizeState]);
+  }, [gap, onLayoutChanged, resizeState, resolvedColumns]);
 
   const setItemRef = useCallback(
     (itemId: string) => (node: HTMLDivElement | null) => {
@@ -357,7 +398,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         height: '100%',
         width: '100%',
         display: 'grid',
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${resolvedColumns}, minmax(0, 1fr))`,
         gridAutoFlow: 'row dense',
         gap: `${gap}px`,
         alignItems: 'start',
@@ -373,7 +414,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         const clampedWidth = clamp(
           item.width,
           item.minWidth,
-          Math.min(item.maxWidth, columns)
+          Math.min(item.maxWidth, resolvedColumns)
         );
 
         return (
@@ -552,4 +593,66 @@ function getResizedColumnSpan(args: {
 
 function clamp(value: number, minValue: number, maxValue: number): number {
   return Math.min(Math.max(value, minValue), maxValue);
+}
+
+function resolveColumns(args: {
+  columns: number | DraggableGridResponsiveColumns;
+  matches: Record<DraggableGridBreakpoint, boolean>;
+}): number {
+  const { columns, matches } = args;
+
+  if (typeof columns === 'number') {
+    return Math.max(1, columns);
+  }
+
+  const orderedBreakpoints: DraggableGridBreakpoint[] = [
+    'xl',
+    'lg',
+    'md',
+    'sm',
+    'xs',
+  ];
+
+  for (const breakpoint of orderedBreakpoints) {
+    if (matches[breakpoint]) {
+      const value = getResponsiveValueForBreakpoint({
+        columns,
+        breakpoint,
+      });
+
+      if (value !== undefined) {
+        return Math.max(1, value);
+      }
+    }
+  }
+
+  return 1;
+}
+
+function getResponsiveValueForBreakpoint(args: {
+  columns: DraggableGridResponsiveColumns;
+  breakpoint: DraggableGridBreakpoint;
+}): number | undefined {
+  const { columns, breakpoint } = args;
+
+  const fallbackOrderByBreakpoint: Record<
+    DraggableGridBreakpoint,
+    DraggableGridBreakpoint[]
+  > = {
+    xs: ['xs'],
+    sm: ['sm', 'xs'],
+    md: ['md', 'sm', 'xs'],
+    lg: ['lg', 'md', 'sm', 'xs'],
+    xl: ['xl', 'lg', 'md', 'sm', 'xs'],
+  };
+
+  for (const key of fallbackOrderByBreakpoint[breakpoint]) {
+    const value = columns[key];
+
+    if (value !== undefined) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
