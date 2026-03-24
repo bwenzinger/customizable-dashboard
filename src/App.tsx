@@ -123,7 +123,7 @@ function App() {
         onLayoutCommitted={handleLayoutCommitted}
         columns={10}
         gap={16}
-        // showGridlines={true}
+        showGridlines={true}
         renderItem={(item: Tile, _index: number, isDragging: boolean) => (
           <Card
             sx={{

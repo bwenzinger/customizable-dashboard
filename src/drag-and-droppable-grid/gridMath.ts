@@ -378,8 +378,8 @@ export function getGridSlotFromPointer(args: {
     padding,
     itemWidth,
   } = args;
-  const innerWidth =
-    containerRect.width - padding * 2 - gap * Math.max(0, columns - 1);
+  const availableWidth = containerRect.width - padding * 2;
+  const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
   const columnWidth = innerWidth / columns;
   const columnStride = columnWidth + gap;
   const rowStride = rowHeight + gap;
@@ -392,7 +392,7 @@ export function getGridSlotFromPointer(args: {
   const centerX = clamp(
     projectedLeft + itemPixelWidth / 2,
     columnWidth / 2,
-    innerWidth - itemPixelWidth / 2
+    availableWidth - itemPixelWidth / 2
   );
   const centerY = clamp(
     projectedTop + rowHeight / 2,
