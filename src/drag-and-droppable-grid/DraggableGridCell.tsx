@@ -51,6 +51,7 @@ export function DraggableGridCell(
       className={itemClassName}
       sx={{
         position: 'relative',
+        zIndex: 1,
         minWidth: 0,
         gridColumn: `span ${clampedWidth}`,
         cursor: isDragging ? 'grabbing' : 'grab',

@@ -18,6 +18,7 @@ export type DraggableGridProps<T extends DraggableGridItem> = {
   onLayoutChanged: (nextLayout: T[]) => void;
   renderItem: (item: T, index: number, isDragging: boolean) => ReactNode;
   columns?: number | DraggableGridResponsiveColumns;
+  showGridlines?: boolean;
   gap?: number;
   className?: string;
   itemClassName?: string;

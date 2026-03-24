@@ -36,6 +36,7 @@ function App() {
         onLayoutChanged={setLayout}
         columns={10}
         gap={16}
+        showGridlines={true}
         renderItem={(item: Tile, _index: number, isDragging: boolean) => (
           <Card
             sx={{

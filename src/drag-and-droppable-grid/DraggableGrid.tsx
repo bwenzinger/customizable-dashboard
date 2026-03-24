@@ -10,6 +10,7 @@ import {
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import { DraggableGridCell } from './DraggableGridCell';
 import {
+  getActiveBreakpoint,
   clamp,
   expandRect,
   getResizedColumnSpan,
@@ -18,6 +19,7 @@ import {
   resolveColumns,
   shouldReorderOnOverlap,
 } from './gridMath';
+import { DebugGridOverlay } from './DebugGridOverlay';
 import type {
   DraggableGridItem,
   DraggableGridProps,
@@ -40,12 +42,14 @@ export function DraggableGrid<T extends DraggableGridItem>(
     onLayoutChanged,
     renderItem,
     columns = 3,
+    showGridlines = false,
     gap = 12,
     className,
     itemClassName,
     animationMs = 320,
     resizeHandleWidth = 12,
   } = props;
+  const containerPadding = 6;
 
   const theme = useTheme();
   const matchesXs = useMediaQuery(theme.breakpoints.up('xs'));
@@ -53,21 +57,32 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const matchesMd = useMediaQuery(theme.breakpoints.up('md'));
   const matchesLg = useMediaQuery(theme.breakpoints.up('lg'));
   const matchesXl = useMediaQuery(theme.breakpoints.up('xl'));
+  const breakpointMatches = {
+    xs: matchesXs,
+    sm: matchesSm,
+    md: matchesMd,
+    lg: matchesLg,
+    xl: matchesXl,
+  };
 
   const resolvedColumns = resolveColumns({
     columns,
-    matches: {
-      xs: matchesXs,
-      sm: matchesSm,
-      md: matchesMd,
-      lg: matchesLg,
-      xl: matchesXl,
-    },
+    matches: breakpointMatches,
   });
+  const activeBreakpoint = getActiveBreakpoint(breakpointMatches);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draftLayout, setDraftLayout] = useState<T[] | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState<T>>(null);
+  const [debugGridMetrics, setDebugGridMetrics] = useState<{
+    rowBoundaries: number[];
+    rowCount: number;
+    gridHeight: number;
+  }>({
+    rowBoundaries: [],
+    rowCount: 0,
+    gridHeight: 0,
+  });
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -80,6 +95,64 @@ export function DraggableGrid<T extends DraggableGridItem>(
     (draggingId !== null || isResizing) && draftLayout !== null
       ? draftLayout
       : layout;
+
+  useLayoutEffect(() => {
+    if (!showGridlines) {
+      return;
+    }
+
+    const containerElement = containerRef.current;
+
+    if (!containerElement) {
+      return;
+    }
+
+    const measureGrid = () => {
+      const rowBottomByTop = new Map<number, number>();
+
+      renderedLayout.forEach((item) => {
+        const element = itemRefs.current.get(item.id);
+
+        if (!element) {
+          return;
+        }
+
+        const rowTop = element.offsetTop - containerPadding;
+        const rowBottom = rowTop + element.offsetHeight;
+        const previousBottom = rowBottomByTop.get(rowTop) ?? 0;
+
+        rowBottomByTop.set(rowTop, Math.max(previousBottom, rowBottom));
+      });
+
+      const sortedRowTops = Array.from(rowBottomByTop.keys()).sort(
+        (first, second) => first - second
+      );
+      const rowBoundaries = sortedRowTops.map((rowTop) => rowBottomByTop.get(rowTop)!);
+      const gridHeight = rowBoundaries.at(-1) ?? 0;
+
+      setDebugGridMetrics({
+        rowBoundaries,
+        rowCount: sortedRowTops.length,
+        gridHeight,
+      });
+    };
+
+    measureGrid();
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureGrid();
+    });
+
+    resizeObserver.observe(containerElement);
+
+    itemRefs.current.forEach((element) => {
+      resizeObserver.observe(element);
+    });
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [containerPadding, renderedLayout, resolvedColumns, showGridlines]);
 
   useLayoutEffect(() => {
     // Capture item positions after each layout change so non-dragged items can
@@ -392,6 +465,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       onDragOver={handleContainerDragOver}
       onDrop={handleContainerDrop}
       sx={{
+        position: 'relative',
         height: '100%',
         width: '100%',
         display: 'grid',
@@ -403,9 +477,21 @@ export function DraggableGrid<T extends DraggableGridItem>(
         alignContent: 'start',
         justifyContent: 'start',
         overflowX: 'hidden',
-        padding: 6,
+        padding: containerPadding,
       }}
     >
+      {showGridlines ? (
+        <DebugGridOverlay
+          columns={columns}
+          resolvedColumns={resolvedColumns}
+          activeBreakpoint={activeBreakpoint}
+          rowCount={debugGridMetrics.rowCount}
+          rowBoundaries={debugGridMetrics.rowBoundaries}
+          gridHeight={debugGridMetrics.gridHeight}
+          containerPadding={containerPadding}
+        />
+      ) : null}
+
       {renderedLayout.map((item, index) => {
         const isDragging = item.id === draggingId;
         const clampedWidth = clamp(

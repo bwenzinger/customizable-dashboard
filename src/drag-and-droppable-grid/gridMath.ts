@@ -188,6 +188,27 @@ export function resolveColumns(args: {
   return 1;
 }
 
+export function getActiveBreakpoint(matches: Record<
+  DraggableGridBreakpoint,
+  boolean
+>): DraggableGridBreakpoint {
+  const orderedBreakpoints: DraggableGridBreakpoint[] = [
+    'xl',
+    'lg',
+    'md',
+    'sm',
+    'xs',
+  ];
+
+  for (const breakpoint of orderedBreakpoints) {
+    if (matches[breakpoint]) {
+      return breakpoint;
+    }
+  }
+
+  return 'xs';
+}
+
 function getResponsiveValueForBreakpoint(args: {
   columns: DraggableGridResponsiveColumns;
   breakpoint: DraggableGridBreakpoint;
