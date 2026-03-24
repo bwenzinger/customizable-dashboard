@@ -399,9 +399,11 @@ export function getGridSlotFromPointer(args: {
     rowHeight / 2,
     rowStride * Math.max(1, rowCount) - gap - rowHeight / 2
   );
-  // Convert the center point to the nearest visible column/row center.
+  // Convert the center point to the nearest valid *start column* for an item of
+  // this width. Using the dragged item's full width keeps wider cards from
+  // feeling biased to the right while 1x1 cards still snap naturally.
   const rawColumn =
-    Math.round((centerX - columnWidth / 2) / columnStride) + 1;
+    Math.round((centerX - itemPixelWidth / 2) / columnStride) + 1;
   const rawRow = Math.round((centerY - rowHeight / 2) / rowStride) + 1;
 
   return {
