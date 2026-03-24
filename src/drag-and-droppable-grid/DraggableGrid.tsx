@@ -263,9 +263,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
 
       // History should only record the finished resize gesture, not the live
       // mousemove updates that happen while dragging the handle.
-      if (
-        !haveSameGridLayout(resizeState.layoutAtResizeStart, finalLayout)
-      ) {
+      if (!haveSameGridLayout(resizeState.layoutAtResizeStart, finalLayout)) {
         onLayoutCommitted?.(
           finalLayout,
           resizeState.layoutAtResizeStart,
@@ -490,7 +488,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
           : latestHoverResult.nextLayout;
       });
       hoverPreviewTimeoutRef.current = null;
-    }, 500);
+    }, 0);
   };
 
   const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {

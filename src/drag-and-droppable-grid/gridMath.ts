@@ -383,19 +383,30 @@ export function getGridSlotFromPointer(args: {
   const columnWidth = innerWidth / columns;
   const columnStride = columnWidth + gap;
   const rowStride = rowHeight + gap;
-  // Convert the pointer into a coarse row/column address in the visible grid.
-  const relativeX = clamp(clientX - containerRect.left - padding, 0, innerWidth);
-  const relativeY = clamp(
-    clientY - containerRect.top - padding,
-    0,
-    rowStride * Math.max(1, rowCount) - gap
+  const itemPixelWidth = itemWidth * columnWidth + Math.max(0, itemWidth - 1) * gap;
+  const maxColumnStart = Math.max(1, columns - itemWidth + 1);
+  // `clientX`/`clientY` represent the dragged card's projected top-left corner.
+  // Snap using the card's visual center so moving left/right feels symmetric.
+  const projectedLeft = clientX - containerRect.left - padding;
+  const projectedTop = clientY - containerRect.top - padding;
+  const centerX = clamp(
+    projectedLeft + itemPixelWidth / 2,
+    columnWidth / 2,
+    innerWidth - itemPixelWidth / 2
   );
-  const rawColumn = Math.floor(relativeX / columnStride) + 1;
-  const rawRow = Math.floor(relativeY / rowStride) + 1;
+  const centerY = clamp(
+    projectedTop + rowHeight / 2,
+    rowHeight / 2,
+    rowStride * Math.max(1, rowCount) - gap - rowHeight / 2
+  );
+  // Convert the center point to the nearest visible column/row center.
+  const rawColumn =
+    Math.round((centerX - columnWidth / 2) / columnStride) + 1;
+  const rawRow = Math.round((centerY - rowHeight / 2) / rowStride) + 1;
 
   return {
     row: clamp(rawRow, 1, rowCount),
-    column: clamp(rawColumn, 1, Math.max(1, columns - itemWidth + 1)),
+    column: clamp(rawColumn, 1, maxColumnStart),
   };
 }
 
