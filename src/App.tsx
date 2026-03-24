@@ -11,12 +11,12 @@ type Tile = DraggableGridItem & {
 };
 
 const initialLayout: Tile[] = [
-  { id: 'a', title: 'Overview', width: 1, minWidth: 3, maxWidth: 7 },
-  { id: 'b', title: 'Alerts', width: 1, minWidth: 3, maxWidth: 7 },
-  { id: 'c', title: 'Usage', width: 1, minWidth: 3, maxWidth: 7 },
-  { id: 'd', title: 'Cost', width: 1, minWidth: 3, maxWidth: 7 },
-  { id: 'e', title: 'Forecast', width: 1, minWidth: 3, maxWidth: 7 },
-  { id: 'f', title: 'Settings', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'a', title: 'Overview 3-7', width: 1, minWidth: 3, maxWidth: 7 },
+  { id: 'b', title: 'Alerts 5-5', width: 1, minWidth: 5, maxWidth: 5 },
+  { id: 'c', title: 'Usage 2-7', width: 1, minWidth: 2, maxWidth: 7 },
+  { id: 'd', title: 'Cost 1-11', width: 1, minWidth: 1, maxWidth: 11 },
+  { id: 'e', title: 'Forecast 1-2', width: 1, minWidth: 1, maxWidth: 2 },
+  { id: 'f', title: 'Settings 1-1', width: 1, minWidth: 1, maxWidth: 1 },
 ];
 
 function App() {
