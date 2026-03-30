@@ -211,6 +211,8 @@ export function getResizedColumnSpan(args: {
   // jitter does not cause accidental resize jumps.
   const activationPx = Math.min(40, Math.max(20, strideWidth * 0.18));
 
+  console.log('activationPx: ', activationPx);
+
   if (deltaX >= activationPx) {
     return startWidth + Math.floor((deltaX - activationPx) / strideWidth) + 1;
   }
