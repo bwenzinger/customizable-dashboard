@@ -2,6 +2,7 @@ import { typedKeys } from './typedKeys';
 import type {
   DraggableGridBreakpoint,
   DraggableGridResponsiveColumns,
+  ResizeAnchorInfo,
 } from './types';
 
 export function reorderItems<T>(
@@ -199,31 +200,22 @@ export function expandRect(args: { rect: DOMRect; paddingPx: number }): {
 export function getResizedColumnSpan(args: {
   containerWidth: number;
   columns: number;
-  gap: number;
-  startWidth: number;
-  deltaX: number;
+  resizeAnchor: ResizeAnchorInfo;
+  clientX: number;
 }): number {
-  const { containerWidth, columns, gap, startWidth, deltaX } = args;
+  const { containerWidth, columns, resizeAnchor, clientX } = args;
 
-  const singleColumnWidth = (containerWidth - gap * (columns - 1)) / columns;
-  const strideWidth = singleColumnWidth + gap;
-  // Require a bit of horizontal travel before changing span so minor pointer
-  // jitter does not cause accidental resize jumps.
-  const activationPx = Math.min(40, Math.max(20, strideWidth * 0.18));
+  const singleColumnWidth = containerWidth / columns;
 
-  console.log('activationPx: ', activationPx);
+  console.log('singleColumnWidth', singleColumnWidth);
 
-  if (deltaX >= activationPx) {
-    return startWidth + Math.floor((deltaX - activationPx) / strideWidth) + 1;
-  }
+  const distanceFromLeftToMouse = clientX - resizeAnchor.parentCoords.left;
 
-  if (deltaX <= -activationPx) {
-    return (
-      startWidth - (Math.floor((-deltaX - activationPx) / strideWidth) + 1)
-    );
-  }
+  const newWidth = Math.round(distanceFromLeftToMouse / singleColumnWidth);
 
-  return startWidth;
+  // console.log('newWidth: ', newWidth);
+
+  return newWidth;
 }
 
 export function clamp(

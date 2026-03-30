@@ -8,11 +8,11 @@ import {
   useTheme,
 } from '@mui/material';
 
-import {
-  DraggableGrid,
-  type DraggableGridProps,
-  type DraggableGridItem,
-} from './drag-and-droppable-grid/DraggableGrid';
+import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
+import type {
+  DraggableGridItem,
+  DraggableGridProps,
+} from './drag-and-droppable-grid/types';
 
 type Tile = DraggableGridItem & {
   title: string;
@@ -117,7 +117,7 @@ function App() {
         </Button>
       </Box>
 
-      <DraggableGrid<Tile>
+      <DraggableGridContextWrapper<Tile>
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
         onLayoutCommitted={handleLayoutCommitted}
