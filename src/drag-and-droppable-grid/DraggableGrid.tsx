@@ -56,7 +56,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   });
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [resizeState, setResizeState] = useState<ResizeState<T>>(null);
+  const [resizeState, setResizeState] = useState<ResizeState>(null);
   const [gridResizeState, setGridResizeState] = useState<GridResizeState>(null);
   const [rowCount, setRowCount] = useState<number>(
     Math.max(initialRowCount, minRowCount)
@@ -196,7 +196,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       //   resizeAnchorRef.current
       // );
 
-      const nextWidth = getResizedColumnSpan({
+      const newWidth = getResizedColumnSpan({
         containerWidth: ref?.current?.getBoundingClientRect().width,
         columns: numColumns,
         resizeAnchor,
@@ -204,7 +204,6 @@ export function DraggableGrid<T extends DraggableGridItem>(
         // startWidth: resizeAnchor.width,
         // deltaX: event.clientX - resizeAnchor.clientX,
       });
-      console.log('nextWidth: ', nextWidth);
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
       );
@@ -216,7 +215,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       // Rebuild from the snapshot captured at resize start so the item keeps a
       // stable base position while its width changes.
       const clampedWidth = normalizeItemWidth({
-        width: nextWidth,
+        width: newWidth,
         minWidth: activeItem.minWidth,
         maxWidth: activeItem.maxWidth,
         columns: numColumns,

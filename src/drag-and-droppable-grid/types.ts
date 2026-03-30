@@ -44,11 +44,11 @@ export type ReorderLock = {
   bottom: number;
 } | null;
 
-export type ResizeState<T extends DraggableGridItem> = {
+export type ResizeState = {
   itemId: string;
   startClientX: number;
   startWidth: number;
-  layoutAtResizeStart: T[];
+  layoutAtResizeStart: DraggableGridItem[];
 } | null;
 
 export type GridResizeState = {

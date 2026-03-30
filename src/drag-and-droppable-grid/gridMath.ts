@@ -1,6 +1,7 @@
 import { typedKeys } from './typedKeys';
 import type {
   DraggableGridBreakpoint,
+  DraggableGridItem,
   DraggableGridResponsiveColumns,
   ResizeAnchorInfo,
 } from './types';
@@ -206,14 +207,8 @@ export function getResizedColumnSpan(args: {
   const { containerWidth, columns, resizeAnchor, clientX } = args;
 
   const singleColumnWidth = containerWidth / columns;
-
-  console.log('singleColumnWidth', singleColumnWidth);
-
   const distanceFromLeftToMouse = clientX - resizeAnchor.parentCoords.left;
-
   const newWidth = Math.round(distanceFromLeftToMouse / singleColumnWidth);
-
-  // console.log('newWidth: ', newWidth);
 
   return newWidth;
 }
@@ -346,16 +341,12 @@ export function moveItemToGridSlot<
   });
 }
 
-export function resizeItemInLayout<
-  T extends {
-    id: string;
-    width: number;
-    minWidth: number;
-    maxWidth: number;
-    row?: number;
-    column?: number;
-  },
->(args: { layout: T[]; itemId: string; width: number; columns: number }): T[] {
+export function resizeItemInLayout(args: {
+  layout: DraggableGridItem[];
+  itemId: string;
+  width: number;
+  columns: number;
+}): DraggableGridItem[] {
   const { layout, itemId, width, columns } = args;
   const resizedItem = layout.find((item) => item.id === itemId);
 
