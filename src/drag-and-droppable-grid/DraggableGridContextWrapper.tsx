@@ -1,15 +1,15 @@
 import { useRef } from 'react';
 import { DraggableGrid } from './DraggableGrid';
 import { DraggableGridContext } from './DraggableGridContext';
-import type { DraggableGridItem, DraggableGridProps } from './types';
+import type { DraggableGridProps } from './types';
 
-export function DraggableGridContextWrapper<T extends DraggableGridItem>(
-  props: Omit<DraggableGridProps<T>, 'ref'>
+export function DraggableGridContextWrapper(
+  props: Omit<DraggableGridProps, 'ref'>
 ) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   return (
     <DraggableGridContext value={{ containerRef: gridRef }}>
-      <DraggableGrid<T> {...props} ref={gridRef} />
+      <DraggableGrid {...props} ref={gridRef} />
     </DraggableGridContext>
   );
 }

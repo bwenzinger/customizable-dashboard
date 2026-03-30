@@ -29,17 +29,17 @@ const initialLayout: Tile[] = [
 
 function App() {
   const theme = useTheme();
-  const [layout, setLayout] = useState<Tile[]>(initialLayout);
-  const [layoutHistory, setLayoutHistory] = useState<Tile[][]>([]);
+  const [layout, setLayout] = useState<DraggableGridItem[]>(initialLayout);
+  const [layoutHistory, setLayoutHistory] = useState<DraggableGridItem[][]>([]);
 
-  const handleLayoutChanged = useCallback((nextLayout: Tile[]) => {
+  const handleLayoutChanged = useCallback((nextLayout: DraggableGridItem[]) => {
     // Live grid updates change the current committed layout on screen, but they
     // do not automatically create undo history.
     setLayout(nextLayout);
   }, []);
 
   const handleLayoutCommitted = useCallback<
-    NonNullable<DraggableGridProps<Tile>['onLayoutCommitted']>
+    NonNullable<DraggableGridProps['onLayoutCommitted']>
   >((nextLayout, previousLayout) => {
     if (haveSameLayout(previousLayout, nextLayout)) {
       return;
@@ -117,39 +117,47 @@ function App() {
         </Button>
       </Box>
 
-      <DraggableGridContextWrapper<Tile>
+      <DraggableGridContextWrapper
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
         onLayoutCommitted={handleLayoutCommitted}
         columns={10}
         gap={16}
         // showGridlines={true}
-        renderItem={(item: Tile, _index: number, isDragging: boolean) => (
-          <Card
-            sx={{
-              ...theme.customStyles.floatingCard,
-              ...theme.customStyles.interactiveCard,
-              height: 120,
-              opacity: isDragging ? 0.7 : 1,
-              cursor: 'grab',
-              display: 'flex',
-            }}
-          >
-            <CardContent
+        renderItem={(
+          item: DraggableGridItem,
+          _index: number,
+          isDragging: boolean
+        ) => {
+          const foundItem = initialLayout.find((x) => x.id === item.id);
+
+          return (
+            <Card
               sx={{
+                ...theme.customStyles.floatingCard,
+                ...theme.customStyles.interactiveCard,
+                height: 120,
+                opacity: isDragging ? 0.7 : 1,
+                cursor: 'grab',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 1,
-                textAlign: 'center',
               }}
             >
-              <Typography fontWeight={600}>
-                {item.title} ({item.width})
-              </Typography>
-            </CardContent>
-          </Card>
-        )}
+              <CardContent
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: 1,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography fontWeight={600}>
+                  {foundItem?.title} ({item.width})
+                </Typography>
+              </CardContent>
+            </Card>
+          );
+        }}
       />
     </Box>
   );
@@ -157,7 +165,10 @@ function App() {
 
 export default App;
 
-function haveSameLayout(first: Tile[], second: Tile[]): boolean {
+function haveSameLayout(
+  first: DraggableGridItem[],
+  second: DraggableGridItem[]
+): boolean {
   return (
     first.length === second.length &&
     first.every((item, index) => {
@@ -169,8 +180,7 @@ function haveSameLayout(first: Tile[], second: Tile[]): boolean {
         item.minWidth === candidate.minWidth &&
         item.maxWidth === candidate.maxWidth &&
         item.row === candidate.row &&
-        item.column === candidate.column &&
-        item.title === candidate.title
+        item.column === candidate.column
       );
     })
   );

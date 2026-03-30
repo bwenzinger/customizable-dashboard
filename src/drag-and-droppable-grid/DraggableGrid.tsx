@@ -28,9 +28,7 @@ import type {
 } from './types';
 import { useDraggableGridInfo } from './useDraggableGridInfo';
 
-export function DraggableGrid<T extends DraggableGridItem>(
-  props: DraggableGridProps<T>
-): React.JSX.Element {
+export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const {
     ref,
     layout,
@@ -353,7 +351,11 @@ export function DraggableGrid<T extends DraggableGridItem>(
   };
 
   const getLayoutForPointer = useCallback(
-    (clientX: number, clientY: number, sourceLayout: T[]): T[] | null => {
+    (
+      clientX: number,
+      clientY: number,
+      sourceLayout: DraggableGridItem[]
+    ): DraggableGridItem[] | null => {
       const activeDraggingId = draggingId;
       const containerElement = ref.current;
 
@@ -432,7 +434,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   };
 
   const handleResizeMouseDown =
-    (item: T) => (event: ReactMouseEvent<HTMLDivElement>) => {
+    (item: DraggableGridItem) => (event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
       event.stopPropagation();
 

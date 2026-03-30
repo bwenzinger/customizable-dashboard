@@ -6,16 +6,20 @@ export type DraggableGridResponsiveColumns = Partial<
   Record<DraggableGridBreakpoint, number>
 >;
 
-export type DraggableGridProps<T extends DraggableGridItem> = {
+export type DraggableGridProps = {
   ref: RefObject<HTMLDivElement | null>;
-  layout: T[];
-  onLayoutChanged: (nextLayout: T[]) => void;
+  layout: DraggableGridItem[];
+  onLayoutChanged: (nextLayout: DraggableGridItem[]) => void;
   onLayoutCommitted?: (
-    nextLayout: T[],
-    previousLayout: T[],
+    nextLayout: DraggableGridItem[],
+    previousLayout: DraggableGridItem[],
     reason: 'drop' | 'itemResize'
   ) => void;
-  renderItem: (item: T, index: number, isDragging: boolean) => ReactNode;
+  renderItem: (
+    item: DraggableGridItem,
+    index: number,
+    isDragging: boolean
+  ) => ReactNode;
   columns?: number | DraggableGridResponsiveColumns;
   initialRowCount?: number;
   minRowCount?: number;

@@ -1,12 +1,12 @@
 import { useMediaQuery, useTheme } from '@mui/material';
 import { getActiveBreakpoint, getNumColumns } from './gridMath';
-import type { DraggableGridItem, DraggableGridProps } from './types';
+import type { DraggableGridProps } from './types';
 import { useMemo } from 'react';
 
-export function useDraggableGridInfo<T extends DraggableGridItem>({
+export function useDraggableGridInfo({
   columns,
 }: {
-  columns: NonNullable<DraggableGridProps<T>['columns']>;
+  columns: NonNullable<DraggableGridProps['columns']>;
 }) {
   const theme = useTheme();
   const matchesXs = useMediaQuery(theme.breakpoints.up('xs'));
