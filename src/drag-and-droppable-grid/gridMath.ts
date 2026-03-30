@@ -1,3 +1,4 @@
+import { typedKeys } from './typedKeys';
 import type {
   DraggableGridBreakpoint,
   DraggableGridResponsiveColumns,
@@ -244,11 +245,13 @@ export function normalizeItemWidth(args: {
   return clamp(width, minAllowedWidth, maxAllowedWidth);
 }
 
-export function normalizeLayoutWidths<T extends {
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-}>(layout: T[], columns: number): T[] {
+export function normalizeLayoutWidths<
+  T extends {
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+  },
+>(layout: T[], columns: number): T[] {
   return layout.map((item) => {
     const normalizedWidth = normalizeItemWidth({
       width: item.width,
@@ -268,14 +271,16 @@ export function normalizeLayoutWidths<T extends {
   });
 }
 
-export function normalizeLayoutPositions<T extends {
-  id: string;
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-  row?: number;
-  column?: number;
-}>(layout: T[], columns: number): T[] {
+export function normalizeLayoutPositions<
+  T extends {
+    id: string;
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    row?: number;
+    column?: number;
+  },
+>(layout: T[], columns: number): T[] {
   const occupiedCells = new Set<string>();
 
   return normalizeLayoutWidths(layout, columns).map((item) => {
@@ -311,14 +316,16 @@ export function normalizeLayoutPositions<T extends {
   });
 }
 
-export function moveItemToGridSlot<T extends {
-  id: string;
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-  row?: number;
-  column?: number;
-}>(args: {
+export function moveItemToGridSlot<
+  T extends {
+    id: string;
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    row?: number;
+    column?: number;
+  },
+>(args: {
   layout: T[];
   itemId: string;
   row: number;
@@ -345,19 +352,16 @@ export function moveItemToGridSlot<T extends {
   });
 }
 
-export function resizeItemInLayout<T extends {
-  id: string;
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-  row?: number;
-  column?: number;
-}>(args: {
-  layout: T[];
-  itemId: string;
-  width: number;
-  columns: number;
-}): T[] {
+export function resizeItemInLayout<
+  T extends {
+    id: string;
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    row?: number;
+    column?: number;
+  },
+>(args: { layout: T[]; itemId: string; width: number; columns: number }): T[] {
   const { layout, itemId, width, columns } = args;
   const resizedItem = layout.find((item) => item.id === itemId);
 
@@ -411,7 +415,8 @@ export function getGridSlotFromPointer(args: {
   const columnWidth = innerWidth / columns;
   const columnStride = columnWidth + gap;
   const rowStride = rowHeight + gap;
-  const itemPixelWidth = itemWidth * columnWidth + Math.max(0, itemWidth - 1) * gap;
+  const itemPixelWidth =
+    itemWidth * columnWidth + Math.max(0, itemWidth - 1) * gap;
   const maxColumnStart = Math.max(1, columns - itemWidth + 1);
   // `clientX`/`clientY` represent the dragged card's projected top-left corner.
   // Snap using the card's visual center so moving left/right feels symmetric.
@@ -512,18 +517,16 @@ function getOccupiedCellKey(row: number, column: number): string {
   return `${row}:${column}`;
 }
 
-function normalizeLayoutWithPriority<T extends {
-  id: string;
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-  row?: number;
-  column?: number;
-}>(args: {
-  layout: T[];
-  prioritizedItem: T;
-  columns: number;
-}): T[] {
+function normalizeLayoutWithPriority<
+  T extends {
+    id: string;
+    width: number;
+    minWidth: number;
+    maxWidth: number;
+    row?: number;
+    column?: number;
+  },
+>(args: { layout: T[]; prioritizedItem: T; columns: number }): T[] {
   const { layout, prioritizedItem, columns } = args;
   const prioritizedLayout = [
     prioritizedItem,
@@ -537,87 +540,29 @@ function normalizeLayoutWithPriority<T extends {
   return layout.map((item) => resolvedById.get(item.id) ?? item);
 }
 
-export function resolveColumns(args: {
+export function getNumColumns(args: {
   columns: number | DraggableGridResponsiveColumns;
-  matches: Record<DraggableGridBreakpoint, boolean>;
+  activeBreakpoint: DraggableGridBreakpoint;
 }): number {
-  const { columns, matches } = args;
+  const { columns, activeBreakpoint } = args;
 
   if (typeof columns === 'number') {
     return Math.max(1, columns);
   }
 
-  const orderedBreakpoints: DraggableGridBreakpoint[] = [
-    'xl',
-    'lg',
-    'md',
-    'sm',
-    'xs',
-  ];
-
-  // Walk from the largest active breakpoint downward so larger layouts can
-  // override smaller ones while still inheriting missing values.
-  for (const breakpoint of orderedBreakpoints) {
-    if (matches[breakpoint]) {
-      const value = getResponsiveValueForBreakpoint({
-        columns,
-        breakpoint,
-      });
-
-      if (value !== undefined) {
-        return Math.max(1, value);
-      }
-    }
-  }
-
-  return 1;
+  return columns[activeBreakpoint] || 1;
 }
 
-export function getActiveBreakpoint(matches: Record<
-  DraggableGridBreakpoint,
-  boolean
->): DraggableGridBreakpoint {
-  const orderedBreakpoints: DraggableGridBreakpoint[] = [
-    'xl',
-    'lg',
-    'md',
-    'sm',
-    'xs',
-  ];
+export function getActiveBreakpoint(
+  matches: Record<DraggableGridBreakpoint, boolean>
+): DraggableGridBreakpoint {
+  const breakpointKeys = typedKeys(matches);
 
-  for (const breakpoint of orderedBreakpoints) {
+  for (const breakpoint of breakpointKeys) {
     if (matches[breakpoint]) {
       return breakpoint;
     }
   }
 
   return 'xs';
-}
-
-function getResponsiveValueForBreakpoint(args: {
-  columns: DraggableGridResponsiveColumns;
-  breakpoint: DraggableGridBreakpoint;
-}): number | undefined {
-  const { columns, breakpoint } = args;
-
-  const fallbackOrderByBreakpoint: Record<
-    DraggableGridBreakpoint,
-    DraggableGridBreakpoint[]
-  > = {
-    xs: ['xs'],
-    sm: ['sm', 'xs'],
-    md: ['md', 'sm', 'xs'],
-    lg: ['lg', 'md', 'sm', 'xs'],
-    xl: ['xl', 'lg', 'md', 'sm', 'xs'],
-  };
-
-  for (const key of fallbackOrderByBreakpoint[breakpoint]) {
-    const value = columns[key];
-
-    if (value !== undefined) {
-      return value;
-    }
-  }
-
-  return undefined;
 }

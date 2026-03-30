@@ -1,12 +1,8 @@
 import { Box, Typography } from '@mui/material';
-import type {
-  DraggableGridBreakpoint,
-  DraggableGridResponsiveColumns,
-} from './types';
+import type { DraggableGridBreakpoint } from './types';
 
 type DebugGridOverlayProps = {
-  columns: number | DraggableGridResponsiveColumns;
-  resolvedColumns: number;
+  numColumns: number;
   activeBreakpoint: DraggableGridBreakpoint;
   rowCount: number;
   rowHeight: number;
@@ -26,8 +22,7 @@ export function DebugGridOverlay(
   props: DebugGridOverlayProps
 ): React.JSX.Element | null {
   const {
-    columns,
-    resolvedColumns,
+    numColumns,
     activeBreakpoint,
     rowCount,
     rowHeight,
@@ -36,11 +31,9 @@ export function DebugGridOverlay(
   } = props;
   const gridHeight = rowCount * rowHeight + Math.max(0, rowCount - 1) * gap;
 
-  if (resolvedColumns < 1 || rowCount < 1 || gridHeight <= 0) {
+  if (numColumns < 1 || rowCount < 1 || gridHeight <= 0) {
     return null;
   }
-
-  const breakpointColumns = getBreakpointColumns(columns);
 
   return (
     <Box
@@ -62,19 +55,19 @@ export function DebugGridOverlay(
           border: '1px dashed rgba(32, 78, 54, 0.7)',
           background:
             'linear-gradient(to right, rgba(32, 78, 54, 0.08), rgba(32, 78, 54, 0.08))',
-          backgroundSize: `${100 / resolvedColumns}% 100%`,
+          backgroundSize: `${100 / numColumns}% 100%`,
           backgroundRepeat: 'repeat',
         }}
       />
 
-      {Array.from({ length: resolvedColumns - 1 }, (_, index) => (
+      {Array.from({ length: numColumns - 1 }, (_, index) => (
         <Box
           key={`column-${index + 1}`}
           sx={{
             position: 'absolute',
             top: 0,
             bottom: 0,
-            left: `${((index + 1) / resolvedColumns) * 100}%`,
+            left: `${((index + 1) / numColumns) * 100}%`,
             width: '1px',
             bgcolor: 'rgba(32, 78, 54, 0.45)',
           }}
@@ -117,7 +110,7 @@ export function DebugGridOverlay(
             color: 'rgba(20, 48, 33, 0.95)',
           }}
         >
-          {activeBreakpoint}: {resolvedColumns} cols x {rowCount} rows
+          {activeBreakpoint}: {numColumns} cols x {rowCount} rows
         </Typography>
         <Typography
           variant="caption"
@@ -133,33 +126,11 @@ export function DebugGridOverlay(
               const prefix = breakpoint === activeBreakpoint ? '[' : ' ';
               const suffix = breakpoint === activeBreakpoint ? ']' : ' ';
 
-              return `${prefix}${breakpoint}:${breakpointColumns[breakpoint]}${suffix}`;
+              return `${prefix}${breakpoint}:${numColumns}${suffix}`;
             })
             .join('  ')}
         </Typography>
       </Box>
     </Box>
   );
-}
-
-function getBreakpointColumns(
-  columns: number | DraggableGridResponsiveColumns
-): Record<DraggableGridBreakpoint, number> {
-  if (typeof columns === 'number') {
-    return {
-      xs: columns,
-      sm: columns,
-      md: columns,
-      lg: columns,
-      xl: columns,
-    };
-  }
-
-  return {
-    xs: columns.xs ?? 1,
-    sm: columns.sm ?? columns.xs ?? 1,
-    md: columns.md ?? columns.sm ?? columns.xs ?? 1,
-    lg: columns.lg ?? columns.md ?? columns.sm ?? columns.xs ?? 1,
-    xl: columns.xl ?? columns.lg ?? columns.md ?? columns.sm ?? columns.xs ?? 1,
-  };
 }

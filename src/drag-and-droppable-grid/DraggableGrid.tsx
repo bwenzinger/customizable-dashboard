@@ -19,7 +19,7 @@ import {
   normalizeItemWidth,
   normalizeLayoutPositions,
   resizeItemInLayout,
-  resolveColumns,
+  getNumColumns,
 } from './gridMath';
 import type {
   DraggableGridItem,
@@ -71,11 +71,11 @@ export function DraggableGrid<T extends DraggableGridItem>(
     xl: matchesXl,
   };
 
-  const resolvedColumns = resolveColumns({
-    columns,
-    matches: breakpointMatches,
-  });
   const activeBreakpoint = getActiveBreakpoint(breakpointMatches);
+  const numColumns = getNumColumns({
+    columns,
+    activeBreakpoint,
+  });
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draftLayout, setDraftLayout] = useState<T[] | null>(null);
@@ -90,6 +90,9 @@ export function DraggableGrid<T extends DraggableGridItem>(
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const resizeAnchorRef = useRef<{ clientX: number; width: number } | null>(
+    null
+  );
 
   const renderedLayout =
     (draggingId !== null || resizeState !== null) && draftLayout !== null
@@ -99,7 +102,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   // rendering and committed state updates.
   const normalizedRenderedLayout = normalizeLayoutPositions(
     renderedLayout,
-    resolvedColumns
+    numColumns
   );
   const requiredRowCount = getRequiredRowCount(normalizedRenderedLayout);
   // The grid can be manually expanded, but it should never shrink below the
@@ -111,12 +114,12 @@ export function DraggableGrid<T extends DraggableGridItem>(
   useEffect(() => {
     // Normalize any externally supplied layout so widths and slot positions stay
     // valid even if the parent passes partial or out-of-date coordinates.
-    const normalizedLayout = normalizeLayoutPositions(layout, resolvedColumns);
+    const normalizedLayout = normalizeLayoutPositions(layout, numColumns);
 
     if (!haveSameGridLayout(layout, normalizedLayout)) {
       onLayoutChanged(normalizedLayout);
     }
-  }, [layout, onLayoutChanged, resolvedColumns]);
+  }, [layout, onLayoutChanged, numColumns]);
 
   useLayoutEffect(() => {
     // Measure item positions after every preview/commit so neighboring cards can
@@ -212,12 +215,18 @@ export function DraggableGrid<T extends DraggableGridItem>(
         return;
       }
 
+      const resizeAnchor = resizeAnchorRef.current;
+
+      if (!resizeAnchor) {
+        return;
+      }
+
       const nextWidth = getResizedColumnSpan({
         containerWidth: containerElement.getBoundingClientRect().width,
-        columns: resolvedColumns,
+        columns: numColumns,
         gap,
-        startWidth: resizeState.startWidth,
-        deltaX: event.clientX - resizeState.startClientX,
+        startWidth: resizeAnchor.width,
+        deltaX: event.clientX - resizeAnchor.clientX,
       });
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
@@ -233,19 +242,25 @@ export function DraggableGrid<T extends DraggableGridItem>(
         width: nextWidth,
         minWidth: activeItem.minWidth,
         maxWidth: activeItem.maxWidth,
-        columns: resolvedColumns,
+        columns: numColumns,
       });
       const nextLayout = resizeItemInLayout({
         layout: resizeState.layoutAtResizeStart,
         itemId: resizeState.itemId,
         width: clampedWidth,
-        columns: resolvedColumns,
+        columns: numColumns,
       });
 
       if (haveSameGridLayout(resizeState.layoutAtResizeStart, nextLayout)) {
         return;
       }
 
+      // Once we accept a width change, re-anchor the resize gesture at the new
+      // mouse position so future moves advance one width step at a time.
+      resizeAnchorRef.current = {
+        clientX: event.clientX,
+        width: clampedWidth,
+      };
       setDraftLayout(nextLayout);
       onLayoutChanged(nextLayout);
     };
@@ -253,7 +268,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     const finishResize = () => {
       const finalLayout = normalizeLayoutPositions(
         draftLayout ?? layout,
-        resolvedColumns
+        numColumns
       );
 
       // History should only record the finished resize gesture, not the live
@@ -267,6 +282,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
       }
 
       isResizingRef.current = false;
+      resizeAnchorRef.current = null;
       setResizeState(null);
     };
 
@@ -284,7 +300,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     onLayoutChanged,
     onLayoutCommitted,
     resizeState,
-    resolvedColumns,
+    numColumns,
   ]);
 
   useEffect(() => {
@@ -347,7 +363,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         y: event.clientY - itemRect.top,
       };
       setDraggingId(itemId);
-      setDraftLayout(normalizeLayoutPositions(layout, resolvedColumns));
+      setDraftLayout(normalizeLayoutPositions(layout, numColumns));
 
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', itemId);
@@ -364,11 +380,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
   };
 
   const getLayoutForPointer = useCallback(
-    (
-      clientX: number,
-      clientY: number,
-      sourceLayout: T[]
-    ): T[] | null => {
+    (clientX: number, clientY: number, sourceLayout: T[]): T[] | null => {
       const activeDraggingId = draggingId;
       const containerElement = containerRef.current;
 
@@ -390,7 +402,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         clientX: clientX - (dragPointerOffsetRef.current?.x ?? 0) + 1,
         clientY: clientY - (dragPointerOffsetRef.current?.y ?? 0) + 1,
         containerRect: containerElement.getBoundingClientRect(),
-        columns: resolvedColumns,
+        columns: numColumns,
         rowCount: resolvedRowCount,
         rowHeight,
         gap,
@@ -402,17 +414,10 @@ export function DraggableGrid<T extends DraggableGridItem>(
         itemId: activeDraggingId,
         row: slot.row,
         column: slot.column,
-        columns: resolvedColumns,
+        columns: numColumns,
       });
     },
-    [
-      containerPadding,
-      draggingId,
-      gap,
-      resolvedColumns,
-      resolvedRowCount,
-      rowHeight,
-    ]
+    [containerPadding, draggingId, gap, numColumns, resolvedRowCount, rowHeight]
   );
 
   const handleContainerDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -455,7 +460,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     );
     const committedLayout = normalizeLayoutPositions(
       hoverResult ?? sourceLayout,
-      resolvedColumns
+      numColumns
     );
 
     // Persist the final layout only when the drag actually drops.
@@ -479,15 +484,20 @@ export function DraggableGrid<T extends DraggableGridItem>(
       isResizingRef.current = true;
       setDraggingId(null);
       setDraftLayout(normalizedRenderedLayout);
+      const normalizedWidth = normalizeItemWidth({
+        width: item.width,
+        minWidth: item.minWidth,
+        maxWidth: item.maxWidth,
+        columns: numColumns,
+      });
+      resizeAnchorRef.current = {
+        clientX: event.clientX,
+        width: normalizedWidth,
+      };
       setResizeState({
         itemId: item.id,
         startClientX: event.clientX,
-        startWidth: normalizeItemWidth({
-          width: item.width,
-          minWidth: item.minWidth,
-          maxWidth: item.maxWidth,
-          columns: resolvedColumns,
-        }),
+        startWidth: normalizedWidth,
         layoutAtResizeStart: normalizedRenderedLayout,
       });
     };
@@ -517,7 +527,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
         minHeight:
           gridContentHeight + containerPadding * 2 + gridResizeHandleHeight + 8,
         display: 'grid',
-        gridTemplateColumns: `repeat(${resolvedColumns}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
         gridTemplateRows: `repeat(${resolvedRowCount}, ${rowHeight}px)`,
         gap: `${gap}px`,
         alignItems: 'stretch',
@@ -531,8 +541,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
     >
       {showGridlines ? (
         <DebugGridOverlay
-          columns={columns}
-          resolvedColumns={resolvedColumns}
+          numColumns={numColumns}
           activeBreakpoint={activeBreakpoint}
           rowCount={resolvedRowCount}
           rowHeight={rowHeight}
@@ -547,7 +556,7 @@ export function DraggableGrid<T extends DraggableGridItem>(
           width: item.width,
           minWidth: item.minWidth,
           maxWidth: item.maxWidth,
-          columns: resolvedColumns,
+          columns: numColumns,
         });
 
         return (
