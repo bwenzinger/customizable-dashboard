@@ -53,6 +53,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   });
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const handlingResizingRef = useRef<{ id: string; width: number }>(null);
   const [resizeState, setResizeState] = useState<ResizeState>(null);
   const [gridResizeState, setGridResizeState] = useState<GridResizeState>(null);
   const [rowCount, setRowCount] = useState<number>(
@@ -193,9 +194,19 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         (item) => item.id === resizeState.itemId
       );
 
-      if (!activeItem) {
+      if (
+        !activeItem ||
+        newWidth === activeItem.width ||
+        (handlingResizingRef.current?.id === resizeState.itemId &&
+          handlingResizingRef.current?.width === newWidth)
+      ) {
         return;
       }
+
+      handlingResizingRef.current = {
+        id: resizeState.itemId,
+        width: newWidth,
+      };
 
       // Rebuild from the snapshot captured at resize start so the item keeps a
       // stable base position while its width changes.
@@ -211,6 +222,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         width: clampedWidth,
         columns: numColumns,
       });
+      console.log('nextLayout: ', nextLayout);
 
       if (haveSameGridLayout(resizeState.layoutAtResizeStart, nextLayout)) {
         return;
