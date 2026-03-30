@@ -23,7 +23,6 @@ import type {
   DraggableGridItem,
   DraggableGridProps,
   GridResizeState,
-  ResizeAnchorInfo,
   ResizeState,
 } from './types';
 import { useDraggableGridInfo } from './useDraggableGridInfo';
@@ -65,7 +64,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
-  const resizeAnchorRef = useRef<ResizeAnchorInfo | null>(null);
 
   // Keep a normalized, collision-free version of the current committed layout
   // before it gets rendered or used as the basis for interaction math.
@@ -181,26 +179,15 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      const resizeAnchor = resizeAnchorRef.current;
-
-      if (!resizeAnchor || !ref?.current) {
+      if (!ref?.current) {
         return;
       }
-
-      // console.log(
-      //   'containerElement: ',
-      //   containerElement,
-      //   'resizeAnchor: ',
-      //   resizeAnchorRef.current
-      // );
 
       const newWidth = getResizedColumnSpan({
         containerWidth: ref?.current?.getBoundingClientRect().width,
         columns: numColumns,
-        resizeAnchor,
+        parentCoords: resizeState.parentCoords,
         clientX: event.clientX,
-        // startWidth: resizeAnchor.width,
-        // deltaX: event.clientX - resizeAnchor.clientX,
       });
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
@@ -229,14 +216,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      // // Once we accept a width change, re-anchor the resize gesture at the new
-      // // mouse position so future moves advance one width step at a time.
-      // resizeAnchorRef.current = {
-      //   clientX: event.clientX,
-      //   width: clampedWidth,
-      //   parentCoords: resizeAnchorRef.current!.parentCoords,
-      // };
-      // console.log('resizeAnchorRef.current', resizeAnchorRef.current);
       onLayoutChanged(nextLayout);
     };
 
@@ -255,7 +234,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       }
 
       isResizingRef.current = false;
-      resizeAnchorRef.current = null;
       setResizeState(null);
     };
 
@@ -440,27 +418,17 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       isResizingRef.current = true;
       setDraggingId(null);
-      const normalizedWidth = normalizeItemWidth({
-        width: item.width,
-        minWidth: item.minWidth,
-        maxWidth: item.maxWidth,
-        columns: numColumns,
-      });
       const parentCoords =
         event.currentTarget.parentElement?.getBoundingClientRect();
 
       if (!parentCoords) return;
 
-      resizeAnchorRef.current = {
-        clientX: event.clientX,
-        width: normalizedWidth,
-        parentCoords,
-      };
+      // Store every piece of information the resize gesture needs in one place
+      // so mousemove can derive width without coordinating a separate ref.
       setResizeState({
         itemId: item.id,
-        startClientX: event.clientX,
-        startWidth: normalizedWidth,
         layoutAtResizeStart: normalizedRenderedLayout,
+        parentCoords,
       });
     };
 

@@ -3,7 +3,6 @@ import type {
   DraggableGridBreakpoint,
   DraggableGridItem,
   DraggableGridResponsiveColumns,
-  ResizeAnchorInfo,
 } from './types';
 
 export function reorderItems<T>(
@@ -201,13 +200,13 @@ export function expandRect(args: { rect: DOMRect; paddingPx: number }): {
 export function getResizedColumnSpan(args: {
   containerWidth: number;
   columns: number;
-  resizeAnchor: ResizeAnchorInfo;
+  parentCoords: DOMRect;
   clientX: number;
 }): number {
-  const { containerWidth, columns, resizeAnchor, clientX } = args;
+  const { containerWidth, columns, parentCoords, clientX } = args;
 
   const singleColumnWidth = containerWidth / columns;
-  const distanceFromLeftToMouse = clientX - resizeAnchor.parentCoords.left;
+  const distanceFromLeftToMouse = clientX - parentCoords.left;
   const newWidth = Math.round(distanceFromLeftToMouse / singleColumnWidth);
 
   return newWidth;

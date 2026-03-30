@@ -50,18 +50,11 @@ export type ReorderLock = {
 
 export type ResizeState = {
   itemId: string;
-  startClientX: number;
-  startWidth: number;
   layoutAtResizeStart: DraggableGridItem[];
+  parentCoords: DOMRect;
 } | null;
 
 export type GridResizeState = {
   startClientY: number;
   startRowCount: number;
 } | null;
-
-export interface ResizeAnchorInfo {
-  clientX: number;
-  width: number;
-  parentCoords: DOMRect;
-}
