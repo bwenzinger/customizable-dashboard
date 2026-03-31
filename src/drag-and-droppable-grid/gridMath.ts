@@ -200,16 +200,33 @@ export function expandRect(args: { rect: DOMRect; paddingPx: number }): {
 export function getResizedColumnSpan(args: {
   containerWidth: number;
   columns: number;
+  gap: number;
+  padding: number;
   parentCoords: DOMRect;
   clientX: number;
 }): number {
-  const { containerWidth, columns, parentCoords, clientX } = args;
-
-  const singleColumnWidth = containerWidth / columns;
+  const { containerWidth, columns, gap, padding, parentCoords, clientX } = args;
+  const availableWidth = containerWidth - padding * 2;
+  const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
+  const singleColumnWidth = innerWidth / columns;
+  const columnStride = singleColumnWidth + gap;
   const distanceFromLeftToMouse = clientX - parentCoords.left;
-  const newWidth = Math.round(distanceFromLeftToMouse / singleColumnWidth);
+  const newWidth = Math.round((distanceFromLeftToMouse + gap) / columnStride);
 
   return newWidth;
+}
+
+export function getResizedRowSpan(args: {
+  parentCoords: DOMRect;
+  clientY: number;
+  rowHeight: number;
+  gap: number;
+}): number {
+  const { parentCoords, clientY, rowHeight, gap } = args;
+  const rowStride = rowHeight + gap;
+  const distanceFromTopToMouse = clientY - parentCoords.top;
+
+  return Math.round((distanceFromTopToMouse + gap) / rowStride);
 }
 
 export function clamp(
@@ -233,7 +250,25 @@ export function clampItemWidth(args: {
   return clamp(width, minAllowedWidth, maxAllowedWidth);
 }
 
-export function normalizeLayoutWidths(
+export function getItemHeight(
+  item?: Pick<DraggableGridItem, 'height'>
+): number {
+  return Math.max(1, item?.height ?? 1);
+}
+
+export function clampItemHeight(args: {
+  height: number;
+  minHeight: number;
+  maxHeight: number;
+}): number {
+  const { height, minHeight, maxHeight } = args;
+  const maxAllowedHeight = Math.max(1, maxHeight);
+  const minAllowedHeight = Math.min(Math.max(1, minHeight), maxAllowedHeight);
+
+  return clamp(height, minAllowedHeight, maxAllowedHeight);
+}
+
+export function normalizeLayoutSpans(
   layout: DraggableGridItem[],
   columns: number
 ): DraggableGridItem[] {
@@ -244,14 +279,22 @@ export function normalizeLayoutWidths(
       maxWidth: item.maxWidth,
       columns,
     });
+    const normalizedHeight = clampItemHeight({
+      height: getItemHeight(item),
+      minHeight: item.minHeight ?? 1,
+      maxHeight: item.maxHeight ?? getItemHeight(item),
+    });
+    const hasWidthChanged = normalizedWidth !== item.width;
+    const hasHeightChanged = normalizedHeight !== getItemHeight(item);
 
-    if (normalizedWidth === item.width) {
+    if (!hasWidthChanged && !hasHeightChanged) {
       return item;
     }
 
     return {
       ...item,
-      width: normalizedWidth,
+      ...(hasWidthChanged ? { width: normalizedWidth } : {}),
+      ...(hasHeightChanged ? { height: normalizedHeight } : {}),
     };
   });
 }
@@ -262,16 +305,18 @@ export function normalizeLayoutPositions(
 ): DraggableGridItem[] {
   const occupiedCells = new Set<string>();
 
-  return normalizeLayoutWidths(layout, columns).map((item) => {
+  return normalizeLayoutSpans(layout, columns).map((item) => {
     const desiredRow = Math.max(1, item.row ?? 1);
     const maxColumnStart = Math.max(1, columns - item.width + 1);
     const desiredColumn = clamp(item.column ?? 1, 1, maxColumnStart);
+    const itemHeight = getItemHeight(item);
     // Keep each item as close as possible to its requested slot, but push it
     // forward if that slot is already occupied by an earlier item.
     const placement = findNextAvailableSlot({
       occupiedCells,
       columns,
       width: item.width,
+      height: itemHeight,
       startRow: desiredRow,
       startColumn: desiredColumn,
     });
@@ -280,6 +325,7 @@ export function normalizeLayoutPositions(
       row: placement.row,
       column: placement.column,
       width: item.width,
+      height: itemHeight,
     });
 
     if (item.row === placement.row && item.column === placement.column) {
@@ -325,9 +371,10 @@ export function resizeItemInLayout(args: {
   layout: DraggableGridItem[];
   itemId: string;
   width: number;
+  height: number;
   columns: number;
 }): DraggableGridItem[] {
-  const { layout, itemId, width, columns } = args;
+  const { layout, itemId, width, height, columns } = args;
   const resizedItem = layout.find((item) => item.id === itemId);
 
   if (!resizedItem) {
@@ -342,15 +389,20 @@ export function resizeItemInLayout(args: {
     prioritizedItem: {
       ...resizedItem,
       width,
+      height,
     },
     columns,
   });
 }
 
-export function getRequiredRowCount<T extends { row?: number }>(
+export function getRequiredRowCount<T extends { row?: number; height?: number }>(
   layout: T[]
 ): number {
-  return layout.reduce((maxRow, item) => Math.max(maxRow, item.row ?? 1), 1);
+  return layout.reduce((maxRow, item) => {
+    const rowEnd = (item.row ?? 1) + getItemHeight(item) - 1;
+
+    return Math.max(maxRow, rowEnd);
+  }, 1);
 }
 
 export function getGridSlotFromPointer(args: {
@@ -363,6 +415,7 @@ export function getGridSlotFromPointer(args: {
   gap: number;
   padding: number;
   itemWidth: number;
+  itemHeight: number;
 }): { row: number; column: number } {
   const {
     clientX,
@@ -374,15 +427,20 @@ export function getGridSlotFromPointer(args: {
     gap,
     padding,
     itemWidth,
+    itemHeight,
   } = args;
   const availableWidth = containerRect.width - padding * 2;
   const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
   const columnWidth = innerWidth / columns;
   const columnStride = columnWidth + gap;
   const rowStride = rowHeight + gap;
+  const gridHeight = rowCount * rowHeight + Math.max(0, rowCount - 1) * gap;
   const itemPixelWidth =
     itemWidth * columnWidth + Math.max(0, itemWidth - 1) * gap;
+  const itemPixelHeight =
+    itemHeight * rowHeight + Math.max(0, itemHeight - 1) * gap;
   const maxColumnStart = Math.max(1, columns - itemWidth + 1);
+  const maxRowStart = Math.max(1, rowCount - itemHeight + 1);
   // `clientX`/`clientY` represent the dragged card's projected top-left corner.
   // Snap using the card's visual center so moving left/right feels symmetric.
   const projectedLeft = clientX - containerRect.left - padding;
@@ -393,19 +451,19 @@ export function getGridSlotFromPointer(args: {
     availableWidth - itemPixelWidth / 2
   );
   const centerY = clamp(
-    projectedTop + rowHeight / 2,
-    rowHeight / 2,
-    rowStride * Math.max(1, rowCount) - gap - rowHeight / 2
+    projectedTop + itemPixelHeight / 2,
+    itemPixelHeight / 2,
+    gridHeight - itemPixelHeight / 2
   );
   // Convert the center point to the nearest valid *start column* for an item of
   // this width. Using the dragged item's full width keeps wider cards from
   // feeling biased to the right while 1x1 cards still snap naturally.
   const rawColumn =
     Math.round((centerX - itemPixelWidth / 2) / columnStride) + 1;
-  const rawRow = Math.round((centerY - rowHeight / 2) / rowStride) + 1;
+  const rawRow = Math.round((centerY - itemPixelHeight / 2) / rowStride) + 1;
 
   return {
-    row: clamp(rawRow, 1, rowCount),
+    row: clamp(rawRow, 1, maxRowStart),
     column: clamp(rawColumn, 1, maxColumnStart),
   };
 }
@@ -414,10 +472,11 @@ function findNextAvailableSlot(args: {
   occupiedCells: Set<string>;
   columns: number;
   width: number;
+  height: number;
   startRow: number;
   startColumn: number;
 }): { row: number; column: number } {
-  const { occupiedCells, columns, width, startRow, startColumn } = args;
+  const { occupiedCells, columns, width, height, startRow, startColumn } = args;
 
   // Search from the desired slot outward so items preserve intentional gaps
   // whenever possible instead of always collapsing back to row 1 / column 1.
@@ -432,6 +491,7 @@ function findNextAvailableSlot(args: {
           row,
           column,
           width,
+          height,
         })
       ) {
         return {
@@ -453,12 +513,19 @@ function canPlaceItem(args: {
   row: number;
   column: number;
   width: number;
+  height: number;
 }): boolean {
-  const { occupiedCells, row, column, width } = args;
+  const { occupiedCells, row, column, width, height } = args;
 
-  for (let offset = 0; offset < width; offset += 1) {
-    if (occupiedCells.has(getOccupiedCellKey(row, column + offset))) {
-      return false;
+  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
+    for (let columnOffset = 0; columnOffset < width; columnOffset += 1) {
+      if (
+        occupiedCells.has(
+          getOccupiedCellKey(row + rowOffset, column + columnOffset)
+        )
+      ) {
+        return false;
+      }
     }
   }
 
@@ -470,11 +537,14 @@ function markOccupiedCells(args: {
   row: number;
   column: number;
   width: number;
+  height: number;
 }): void {
-  const { occupiedCells, row, column, width } = args;
+  const { occupiedCells, row, column, width, height } = args;
 
-  for (let offset = 0; offset < width; offset += 1) {
-    occupiedCells.add(getOccupiedCellKey(row, column + offset));
+  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
+    for (let columnOffset = 0; columnOffset < width; columnOffset += 1) {
+      occupiedCells.add(getOccupiedCellKey(row + rowOffset, column + columnOffset));
+    }
   }
 }
 

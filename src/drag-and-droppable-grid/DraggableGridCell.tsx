@@ -12,6 +12,7 @@ type DraggableGridCellProps = {
   rowStart: number;
   columnStart: number;
   clampedWidth: number;
+  clampedHeight: number;
   isDragging: boolean;
   isResizeDisabled: boolean;
   itemClassName?: string;
@@ -34,6 +35,7 @@ export function DraggableGridCell(
     rowStart,
     columnStart,
     clampedWidth,
+    clampedHeight,
     isDragging,
     isResizeDisabled,
     itemClassName,
@@ -63,9 +65,10 @@ export function DraggableGridCell(
         position: 'relative',
         zIndex: isDragging ? 4 : 1,
         minWidth: 0,
-        alignSelf: 'start',
+        height: '100%',
+        alignSelf: 'stretch',
         gridColumn: `${columnStart} / span ${clampedWidth}`,
-        gridRow: `${rowStart}`,
+        gridRow: `${rowStart} / span ${clampedHeight}`,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         opacity: isDragging ? 0.92 : 1,

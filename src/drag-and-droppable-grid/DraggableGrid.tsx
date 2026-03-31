@@ -11,10 +11,13 @@ import { Box } from '@mui/material';
 import { DraggableGridCell } from './DraggableGridCell';
 import { DebugGridOverlay } from './DebugGridOverlay';
 import {
+  clampItemHeight,
   clampItemWidth,
   getGridSlotFromPointer,
+  getItemHeight,
   getRequiredRowCount,
   getResizedColumnSpan,
+  getResizedRowSpan,
   moveItemToGridSlot,
   normalizeLayoutPositions,
   resizeItemInLayout,
@@ -53,9 +56,11 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   });
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const handlingResizingRef = useRef<{ id: string; width: number } | null>(
-    null
-  );
+  const handlingResizingRef = useRef<{
+    id: string;
+    width: number;
+    height: number;
+  } | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState>(null);
   const [gridResizeState, setGridResizeState] = useState<GridResizeState>(null);
   const [rowCount, setRowCount] = useState<number>(
@@ -189,8 +194,16 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       const newWidth = getResizedColumnSpan({
         containerWidth: ref?.current?.getBoundingClientRect().width,
         columns: numColumns,
+        gap,
+        padding: containerPadding,
         parentCoords: resizeState.parentCoords,
         clientX: event.clientX,
+      });
+      const newHeight = getResizedRowSpan({
+        parentCoords: resizeState.parentCoords,
+        clientY: event.clientY,
+        rowHeight,
+        gap,
       });
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
@@ -209,11 +222,18 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         maxWidth: activeItem.maxWidth,
         columns: numColumns,
       });
+      const clampedHeight = clampItemHeight({
+        height: newHeight,
+        minHeight: activeItem.minHeight ?? 1,
+        maxHeight: activeItem.maxHeight ?? getItemHeight(activeItem),
+      });
 
       if (
-        clampedWidth === currentItem.width ||
+        (clampedWidth === currentItem.width &&
+          clampedHeight === getItemHeight(currentItem)) ||
         (handlingResizingRef.current?.id === resizeState.itemId &&
-          handlingResizingRef.current?.width === clampedWidth)
+          handlingResizingRef.current?.width === clampedWidth &&
+          handlingResizingRef.current?.height === clampedHeight)
       ) {
         return;
       }
@@ -221,6 +241,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       handlingResizingRef.current = {
         id: resizeState.itemId,
         width: clampedWidth,
+        height: clampedHeight,
       };
 
       // Rebuild from the snapshot captured at resize start so the item keeps a
@@ -229,6 +250,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         layout: resizeState.layoutAtResizeStart,
         itemId: resizeState.itemId,
         width: clampedWidth,
+        height: clampedHeight,
         columns: numColumns,
       });
 
@@ -272,6 +294,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     onLayoutCommitted,
     resizeState,
     numColumns,
+    rowHeight,
     ref,
   ]);
 
@@ -382,6 +405,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         gap,
         padding: containerPadding,
         itemWidth: draggingItem.width,
+        itemHeight: getItemHeight(draggingItem),
       });
       return moveItemToGridSlot({
         layout: sourceLayout,
@@ -510,6 +534,11 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           maxWidth: item.maxWidth,
           columns: numColumns,
         });
+        const clampedHeight = clampItemHeight({
+          height: getItemHeight(item),
+          minHeight: item.minHeight ?? 1,
+          maxHeight: item.maxHeight ?? getItemHeight(item),
+        });
 
         return (
           <DraggableGridCell
@@ -520,6 +549,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
             setItemRef={setItemRef(item.id)}
             isResizeDisabled={resizeState !== null}
             clampedWidth={clampedWidth}
+            clampedHeight={clampedHeight}
             isDragging={isDragging}
             itemClassName={itemClassName}
             animationMs={animationMs}
@@ -583,6 +613,7 @@ function haveSameGridLayout<T extends DraggableGridItem>(
       return (
         item.id === candidate?.id &&
         item.width === candidate.width &&
+        getItemHeight(item) === getItemHeight(candidate) &&
         item.row === candidate.row &&
         item.column === candidate.column
       );

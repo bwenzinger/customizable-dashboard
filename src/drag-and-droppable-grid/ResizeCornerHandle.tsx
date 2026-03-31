@@ -40,7 +40,7 @@ export function ResizeCornerHandle(
         bottom: 0,
         width: `${visibleResizeHandleWidth}px`,
         height: `${visibleResizeHandleWidth}px`,
-        cursor: 'col-resize',
+        cursor: 'nwse-resize',
         zIndex: 2,
         borderBottomRightRadius: 'inherit',
         overflow: 'hidden',
