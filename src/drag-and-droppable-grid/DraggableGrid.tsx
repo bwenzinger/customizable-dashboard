@@ -582,6 +582,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         position: 'relative',
         height: '100%',
         width: '100%',
+        overflowX: 'hidden',
+        overflowY: 'auto',
       }}
     >
       {enableUndo ? (
@@ -632,7 +634,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           justifyItems: 'stretch',
           alignContent: 'start',
           justifyContent: 'start',
-          overflow: 'auto',
+          overflow: 'hidden',
           padding: containerPadding,
           paddingBottom: `${containerPadding + gridResizeHandleHeight + 8}px`,
         }}

@@ -86,6 +86,7 @@ function App() {
         width: '100vw',
         boxSizing: 'border-box',
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
       <DraggableGridContextWrapper
