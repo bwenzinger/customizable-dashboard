@@ -7,7 +7,7 @@ import type {
 type ResizeCornerHandleProps = {
   gripColor: string;
   activeGripColor: string;
-  isDragging: boolean;
+  isResizing: boolean;
   animationMs: number;
   visibleResizeHandleWidth: number;
   onResizeMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => void;
@@ -19,7 +19,7 @@ export function ResizeCornerHandle(
   const {
     gripColor,
     activeGripColor,
-    isDragging,
+    isResizing,
     animationMs,
     visibleResizeHandleWidth,
     onResizeMouseDown,
@@ -45,7 +45,7 @@ export function ResizeCornerHandle(
         borderBottomRightRadius: 'inherit',
         overflow: 'hidden',
         transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
-        opacity: isDragging ? 1 : 0.9,
+        opacity: isResizing ? 1 : 0.9,
       }}
     >
       <Box
@@ -75,7 +75,7 @@ export function ResizeCornerHandle(
             x2="14"
             y2="2"
             sx={{
-              stroke: isDragging ? activeGripColor : gripColor,
+              stroke: isResizing ? activeGripColor : gripColor,
               strokeWidth: 1.5,
               strokeLinecap: 'round',
             }}
@@ -87,7 +87,7 @@ export function ResizeCornerHandle(
             x2="14"
             y2="8"
             sx={{
-              stroke: isDragging ? activeGripColor : gripColor,
+              stroke: isResizing ? activeGripColor : gripColor,
               strokeWidth: 1.5,
               strokeLinecap: 'round',
             }}

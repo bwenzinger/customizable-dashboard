@@ -14,6 +14,7 @@ type DraggableGridCellProps = {
   clampedWidth: number;
   clampedHeight: number;
   isDragging: boolean;
+  isResizing: boolean;
   isResizeDisabled: boolean;
   itemClassName?: string;
   animationMs: number;
@@ -37,6 +38,7 @@ export function DraggableGridCell(
     clampedWidth,
     clampedHeight,
     isDragging,
+    isResizing,
     isResizeDisabled,
     itemClassName,
     animationMs,
@@ -84,7 +86,7 @@ export function DraggableGridCell(
       <ResizeCornerHandle
         gripColor={gripColor}
         activeGripColor={activeGripColor}
-        isDragging={isDragging}
+        isResizing={isResizing}
         animationMs={animationMs}
         visibleResizeHandleWidth={visibleResizeHandleWidth}
         onResizeMouseDown={onResizeMouseDown}

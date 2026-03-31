@@ -650,6 +650,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
         {normalizedRenderedLayout.map((item, index) => {
           const isDragging = item.id === draggingId;
+          const isResizing = item.id === resizeState?.itemId;
           const clampedWidth = clampItemWidth({
             width: item.width,
             minWidth: item.minWidth,
@@ -673,6 +674,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               clampedWidth={clampedWidth}
               clampedHeight={clampedHeight}
               isDragging={isDragging}
+              isResizing={isResizing}
               itemClassName={itemClassName}
               animationMs={animationMs}
               resizeHandleWidth={resizeHandleWidth}
