@@ -246,15 +246,8 @@ export function normalizeLayoutWidths(
     });
 
     if (normalizedWidth === item.width) {
-      // if (item.id === 'e') {
-      //   console.log('normalizeLayoutWidths: ', item.width);
-      // }
       return item;
     }
-
-    // if (item.id === 'e') {
-    //   console.log('normalizeLayoutWidths: ', normalizedWidth);
-    // }
 
     return {
       ...item,
@@ -282,13 +275,6 @@ export function normalizeLayoutPositions(
       startRow: desiredRow,
       startColumn: desiredColumn,
     });
-    // if (item.id === 'e') {
-    //   console.log('desiredRow', desiredRow);
-    //   console.log('maxColumnStart', maxColumnStart);
-    //   console.log('desiredColumn', desiredColumn);
-    //   console.log('placement', placement);
-    //   console.log('item.width', item.width);
-    // }
     markOccupiedCells({
       occupiedCells,
       row: placement.row,
