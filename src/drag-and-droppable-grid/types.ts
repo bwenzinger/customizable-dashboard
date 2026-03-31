@@ -30,6 +30,7 @@ export type DraggableGridProps = {
   itemClassName?: string;
   animationMs?: number;
   resizeHandleWidth?: number;
+  enableUndo?: boolean;
 };
 
 export type DraggableGridItem = {

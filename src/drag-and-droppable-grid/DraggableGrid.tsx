@@ -7,7 +7,7 @@ import {
   type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { DraggableGridCell } from './DraggableGridCell';
 import { DebugGridOverlay } from './DebugGridOverlay';
 import {
@@ -47,6 +47,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     itemClassName,
     animationMs = 320,
     resizeHandleWidth = 12,
+    enableUndo = false,
   } = props;
   const containerPadding = 6;
   const gridResizeHandleHeight = 18;
@@ -66,12 +67,14 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const [rowCount, setRowCount] = useState<number>(
     Math.max(initialRowCount, minRowCount)
   );
+  const [historySize, setHistorySize] = useState(0);
 
   // const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const layoutHistoryRef = useRef<DraggableGridItem[][]>([]);
 
   // Keep a normalized, collision-free version of the current committed layout
   // before it gets rendered or used as the basis for interaction math.
@@ -83,15 +86,98 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const gridContentHeight =
     resolvedRowCount * rowHeight + Math.max(0, resolvedRowCount - 1) * gap;
 
+  const requestLayoutChange = useCallback(
+    (nextLayout: DraggableGridItem[]) => {
+      onLayoutChanged(nextLayout);
+    },
+    [onLayoutChanged]
+  );
+
+  const recordCommittedLayout = useCallback(
+    (
+      nextLayout: DraggableGridItem[],
+      previousLayout: DraggableGridItem[],
+      reason: 'drop' | 'itemResize'
+    ) => {
+      const normalizedNextLayout = normalizeLayoutPositions(
+        nextLayout,
+        numColumns
+      );
+      const normalizedPreviousLayout = normalizeLayoutPositions(
+        previousLayout,
+        numColumns
+      );
+
+      if (
+        enableUndo &&
+        !haveSameGridLayout(normalizedPreviousLayout, normalizedNextLayout)
+      ) {
+        layoutHistoryRef.current = [
+          ...layoutHistoryRef.current,
+          normalizedPreviousLayout,
+        ];
+        setHistorySize(layoutHistoryRef.current.length);
+      }
+
+      onLayoutCommitted?.(
+        normalizedNextLayout,
+        normalizedPreviousLayout,
+        reason
+      );
+    },
+    [enableUndo, numColumns, onLayoutCommitted]
+  );
+
+  const handleUndo = useCallback(() => {
+    const previousLayout = layoutHistoryRef.current.at(-1);
+
+    if (!previousLayout) {
+      return;
+    }
+
+    layoutHistoryRef.current = layoutHistoryRef.current.slice(0, -1);
+    setHistorySize(layoutHistoryRef.current.length);
+    requestLayoutChange(previousLayout);
+  }, [requestLayoutChange]);
+
   useEffect(() => {
     // Normalize any externally supplied layout so widths and slot positions stay
     // valid even if the parent passes partial or out-of-date coordinates.
     const normalizedLayout = normalizeLayoutPositions(layout, numColumns);
 
     if (!haveSameGridLayout(layout, normalizedLayout)) {
-      onLayoutChanged(normalizedLayout);
+      requestLayoutChange(normalizedLayout);
     }
-  }, [layout, onLayoutChanged, numColumns]);
+  }, [layout, numColumns, requestLayoutChange]);
+
+  useEffect(() => {
+    if (!enableUndo) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+
+      if (event.key.toLowerCase() !== 'z' || event.shiftKey) {
+        return;
+      }
+
+      if (historySize === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      handleUndo();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [enableUndo, handleUndo, historySize]);
 
   useLayoutEffect(() => {
     // Measure item positions after every preview/commit so neighboring cards can
@@ -258,7 +344,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      onLayoutChanged(nextLayout);
+      requestLayoutChange(nextLayout);
     };
 
     const finishResize = () => {
@@ -267,7 +353,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       // History should only record the finished resize gesture, not the live
       // mousemove updates that happen while dragging the handle.
       if (!haveSameGridLayout(resizeState.layoutAtResizeStart, finalLayout)) {
-        onLayoutCommitted?.(
+        recordCommittedLayout(
           finalLayout,
           resizeState.layoutAtResizeStart,
           'itemResize'
@@ -290,8 +376,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     gap,
     layout,
     normalizedRenderedLayout,
-    onLayoutChanged,
-    onLayoutCommitted,
+    recordCommittedLayout,
+    requestLayoutChange,
     resizeState,
     numColumns,
     rowHeight,
@@ -445,8 +531,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
     // Persist the final layout only when the drag actually drops.
     if (!haveSameGridLayout(layout, committedLayout)) {
-      onLayoutChanged(committedLayout);
-      onLayoutCommitted?.(committedLayout, layout, 'drop');
+      requestLayoutChange(committedLayout);
+      recordCommittedLayout(committedLayout, layout, 'drop');
     }
 
     finishDrag();
@@ -492,110 +578,147 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   return (
     <Box
-      ref={ref}
-      className={className}
-      onDragOver={handleContainerDragOver}
-      onDrop={handleContainerDrop}
       sx={{
         position: 'relative',
         height: '100%',
         width: '100%',
-        minHeight:
-          gridContentHeight + containerPadding * 2 + gridResizeHandleHeight + 8,
-        display: 'grid',
-        gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${resolvedRowCount}, ${rowHeight}px)`,
-        gap: `${gap}px`,
-        alignItems: 'stretch',
-        justifyItems: 'stretch',
-        alignContent: 'start',
-        justifyContent: 'start',
-        overflow: 'auto',
-        padding: containerPadding,
-        paddingBottom: `${containerPadding + gridResizeHandleHeight + 8}px`,
       }}
     >
-      {showGridlines ? (
-        <DebugGridOverlay
-          numColumns={numColumns}
-          activeBreakpoint={activeBreakpoint}
-          rowCount={resolvedRowCount}
-          rowHeight={rowHeight}
-          gap={gap}
-          containerPadding={containerPadding}
-        />
+      {enableUndo ? (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10,
+          }}
+        >
+          <Button
+            variant="contained"
+            color="inherit"
+            onClick={handleUndo}
+            disabled={historySize === 0}
+            sx={{
+              borderRadius: 999,
+              px: 2,
+              boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+              backgroundColor: '#ffffff',
+            }}
+          >
+            Undo
+          </Button>
+        </Box>
       ) : null}
 
-      {normalizedRenderedLayout.map((item, index) => {
-        const isDragging = item.id === draggingId;
-        const clampedWidth = clampItemWidth({
-          width: item.width,
-          minWidth: item.minWidth,
-          maxWidth: item.maxWidth,
-          columns: numColumns,
-        });
-        const clampedHeight = clampItemHeight({
-          height: getItemHeight(item),
-          minHeight: item.minHeight ?? 1,
-          maxHeight: item.maxHeight ?? getItemHeight(item),
-        });
-
-        return (
-          <DraggableGridCell
-            key={item.id}
-            itemId={item.id}
-            rowStart={item.row ?? 1}
-            columnStart={item.column ?? 1}
-            setItemRef={setItemRef(item.id)}
-            isResizeDisabled={resizeState !== null}
-            clampedWidth={clampedWidth}
-            clampedHeight={clampedHeight}
-            isDragging={isDragging}
-            itemClassName={itemClassName}
-            animationMs={animationMs}
-            resizeHandleWidth={resizeHandleWidth}
-            onDragStart={handleDragStart(item.id)}
-            onDragEnd={handleDragEnd}
-            onDragOver={handleItemDragOver}
-            onResizeMouseDown={handleResizeMouseDown(item)}
-          >
-            {renderItem(item, index, isDragging)}
-          </DraggableGridCell>
-        );
-      })}
-
       <Box
-        onMouseDown={handleGridResizeMouseDown}
+        ref={ref}
+        className={className}
+        onDragOver={handleContainerDragOver}
+        onDrop={handleContainerDrop}
         sx={{
-          position: 'absolute',
-          top: `${gridContentHeight + containerPadding + 8}px`,
-          left: '50%',
-          width: 72,
-          height: gridResizeHandleHeight,
-          transform: 'translateX(-50%)',
-          borderRadius: 999,
-          cursor: 'ns-resize',
-          zIndex: 3,
-          bgcolor: 'rgba(15, 23, 42, 0.08)',
-          border: '1px solid rgba(15, 23, 42, 0.12)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '4px',
+          position: 'relative',
+          height: '100%',
+          width: '100%',
+          minHeight:
+            gridContentHeight +
+            containerPadding * 2 +
+            gridResizeHandleHeight +
+            8,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${resolvedRowCount}, ${rowHeight}px)`,
+          gap: `${gap}px`,
+          alignItems: 'stretch',
+          justifyItems: 'stretch',
+          alignContent: 'start',
+          justifyContent: 'start',
+          overflow: 'auto',
+          padding: containerPadding,
+          paddingBottom: `${containerPadding + gridResizeHandleHeight + 8}px`,
         }}
       >
-        {/* Bottom handle for changing the total number of available rows. */}
-        {Array.from({ length: 3 }, (_, index) => (
-          <Box
-            key={`grid-row-handle-${index}`}
-            sx={{
-              width: 14,
-              height: '2px',
-              borderRadius: 999,
-              bgcolor: 'rgba(15, 23, 42, 0.45)',
-            }}
+        {showGridlines ? (
+          <DebugGridOverlay
+            numColumns={numColumns}
+            activeBreakpoint={activeBreakpoint}
+            rowCount={resolvedRowCount}
+            rowHeight={rowHeight}
+            gap={gap}
+            containerPadding={containerPadding}
           />
-        ))}
+        ) : null}
+
+        {normalizedRenderedLayout.map((item, index) => {
+          const isDragging = item.id === draggingId;
+          const clampedWidth = clampItemWidth({
+            width: item.width,
+            minWidth: item.minWidth,
+            maxWidth: item.maxWidth,
+            columns: numColumns,
+          });
+          const clampedHeight = clampItemHeight({
+            height: getItemHeight(item),
+            minHeight: item.minHeight ?? 1,
+            maxHeight: item.maxHeight ?? getItemHeight(item),
+          });
+
+          return (
+            <DraggableGridCell
+              key={item.id}
+              itemId={item.id}
+              rowStart={item.row ?? 1}
+              columnStart={item.column ?? 1}
+              setItemRef={setItemRef(item.id)}
+              isResizeDisabled={resizeState !== null}
+              clampedWidth={clampedWidth}
+              clampedHeight={clampedHeight}
+              isDragging={isDragging}
+              itemClassName={itemClassName}
+              animationMs={animationMs}
+              resizeHandleWidth={resizeHandleWidth}
+              onDragStart={handleDragStart(item.id)}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleItemDragOver}
+              onResizeMouseDown={handleResizeMouseDown(item)}
+            >
+              {renderItem(item, index, isDragging)}
+            </DraggableGridCell>
+          );
+        })}
+
+        <Box
+          onMouseDown={handleGridResizeMouseDown}
+          sx={{
+            position: 'absolute',
+            top: `${gridContentHeight + containerPadding + 8}px`,
+            left: '50%',
+            width: 72,
+            height: gridResizeHandleHeight,
+            transform: 'translateX(-50%)',
+            borderRadius: 999,
+            cursor: 'ns-resize',
+            zIndex: 3,
+            bgcolor: 'rgba(15, 23, 42, 0.08)',
+            border: '1px solid rgba(15, 23, 42, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+          }}
+        >
+          {/* Bottom handle for changing the total number of available rows. */}
+          {Array.from({ length: 3 }, (_, index) => (
+            <Box
+              key={`grid-row-handle-${index}`}
+              sx={{
+                width: 14,
+                height: '2px',
+                borderRadius: 999,
+                bgcolor: 'rgba(15, 23, 42, 0.45)',
+              }}
+            />
+          ))}
+        </Box>
       </Box>
     </Box>
   );
