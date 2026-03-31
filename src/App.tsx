@@ -115,7 +115,7 @@ function App() {
                   position: 'relative',
                   // backgroundColor: '#111827',
                   width: '100%',
-                  objectFit: 'contain',
+                  objectFit: 'cover',
                   userSelect: 'none',
                   alignItems: 'stretch',
                   justifyContent: 'stretch',
