@@ -1,14 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Box, Card, CardContent, Typography, useTheme } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
 
-type Tile = DraggableGridItem & {
-  title: string;
-};
-
-const initialLayout: Tile[] = [
+const initialLayout: DraggableGridItem[] = [
   {
     id: 'a',
     title: 'Overview',
@@ -99,15 +96,43 @@ function App() {
         renderItem={(
           item: DraggableGridItem,
           _index: number,
-          isDragging: boolean
+          isDragging: boolean,
+          isResizing: boolean
         ) => {
-          const foundItem = initialLayout.find((x) => x.id === item.id);
+          const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
+
+          if (item.imageSrc) {
+            return (
+              <Card
+                sx={{
+                  ...theme.customStyles.floatingCard,
+                  // ...interactiveCardSx,
+                  height: '100%',
+                  opacity: isDragging ? 0.7 : 1,
+                  cursor: 'grab',
+                  display: 'flex',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  // backgroundColor: '#111827',
+                  width: '100%',
+                  objectFit: 'contain',
+                  userSelect: 'none',
+                  alignItems: 'stretch',
+                  justifyContent: 'stretch',
+                }}
+                component="img"
+                src={item.imageSrc}
+                alt={item.title ?? 'Dropped image'}
+                draggable={false}
+              ></Card>
+            );
+          }
 
           return (
             <Card
               sx={{
                 ...theme.customStyles.floatingCard,
-                ...theme.customStyles.interactiveCard,
+                ...interactiveCardSx,
                 height: '100%',
                 opacity: isDragging ? 0.7 : 1,
                 cursor: 'grab',
@@ -124,9 +149,9 @@ function App() {
                 }}
               >
                 <Typography fontWeight={600}>
-                  {foundItem?.title} {foundItem?.minWidth}w -{' '}
-                  {foundItem?.maxWidth}w / {foundItem?.minHeight}h -{' '}
-                  {foundItem?.maxHeight}h ({item.width} x {item.height ?? 1})
+                  {item.title} {item.minWidth}w - {item.maxWidth}w /{' '}
+                  {item.minHeight}h - {item.maxHeight}h ({item.width} x{' '}
+                  {item.height ?? 1})
                 </Typography>
               </CardContent>
             </Card>
@@ -138,3 +163,25 @@ function App() {
 }
 
 export default App;
+
+function getInteractiveCardSx(theme: Theme, isResizing: boolean) {
+  if (!isResizing) {
+    return theme.customStyles.interactiveCard;
+  }
+
+  const interactiveCardStyles = theme.customStyles.interactiveCard as Record<
+    string,
+    unknown
+  >;
+  const hoverStyles = interactiveCardStyles[':hover'];
+
+  return {
+    ...interactiveCardStyles,
+    ':hover': {
+      ...(typeof hoverStyles === 'object' && hoverStyles !== null
+        ? hoverStyles
+        : {}),
+      transform: 'none',
+    },
+  };
+}

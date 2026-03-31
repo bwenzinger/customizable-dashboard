@@ -18,7 +18,8 @@ export type DraggableGridProps = {
   renderItem: (
     item: DraggableGridItem,
     index: number,
-    isDragging: boolean
+    isDragging: boolean,
+    isResizing: boolean
   ) => ReactNode;
   columns?: number | DraggableGridResponsiveColumns;
   initialRowCount?: number;
@@ -35,6 +36,8 @@ export type DraggableGridProps = {
 
 export type DraggableGridItem = {
   id: string;
+  title?: string;
+  imageSrc?: string;
   width: number;
   minWidth: number;
   maxWidth: number;
