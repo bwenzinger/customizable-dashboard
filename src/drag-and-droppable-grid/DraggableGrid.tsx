@@ -53,7 +53,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   });
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const handlingResizingRef = useRef<{ id: string; width: number }>(null);
+  const handlingResizingRef = useRef<{ id: string; width: number } | null>(
+    null
+  );
   const [resizeState, setResizeState] = useState<ResizeState>(null);
   const [gridResizeState, setGridResizeState] = useState<GridResizeState>(null);
   const [rowCount, setRowCount] = useState<number>(
@@ -69,7 +71,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   // Keep a normalized, collision-free version of the current committed layout
   // before it gets rendered or used as the basis for interaction math.
   const normalizedRenderedLayout = normalizeLayoutPositions(layout, numColumns);
-  console.log('normalizedRenderedLayout: ', normalizedRenderedLayout);
   const requiredRowCount = getRequiredRowCount(normalizedRenderedLayout);
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
@@ -194,38 +195,44 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
       );
+      const currentItem = normalizedRenderedLayout.find(
+        (item) => item.id === resizeState.itemId
+      );
 
-      if (
-        !activeItem ||
-        newWidth === activeItem.width ||
-        (handlingResizingRef.current?.id === resizeState.itemId &&
-          handlingResizingRef.current?.width === newWidth)
-      ) {
+      if (!activeItem || !currentItem) {
         return;
       }
 
-      handlingResizingRef.current = {
-        id: resizeState.itemId,
-        width: newWidth,
-      };
-
-      // Rebuild from the snapshot captured at resize start so the item keeps a
-      // stable base position while its width changes.
       const clampedWidth = clampItemWidth({
         width: newWidth,
         minWidth: activeItem.minWidth,
         maxWidth: activeItem.maxWidth,
         columns: numColumns,
       });
+
+      if (
+        clampedWidth === currentItem.width ||
+        (handlingResizingRef.current?.id === resizeState.itemId &&
+          handlingResizingRef.current?.width === clampedWidth)
+      ) {
+        return;
+      }
+
+      handlingResizingRef.current = {
+        id: resizeState.itemId,
+        width: clampedWidth,
+      };
+
+      // Rebuild from the snapshot captured at resize start so the item keeps a
+      // stable base position while its width changes.
       const nextLayout = resizeItemInLayout({
         layout: resizeState.layoutAtResizeStart,
         itemId: resizeState.itemId,
         width: clampedWidth,
         columns: numColumns,
       });
-      // console.log('nextLayout: ', nextLayout);
 
-      if (haveSameGridLayout(resizeState.layoutAtResizeStart, nextLayout)) {
+      if (haveSameGridLayout(normalizedRenderedLayout, nextLayout)) {
         return;
       }
 
@@ -233,7 +240,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     };
 
     const finishResize = () => {
-      console.log('finishResize');
       const finalLayout = normalizeLayoutPositions(layout, numColumns);
 
       // History should only record the finished resize gesture, not the live
@@ -246,6 +252,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         );
       }
 
+      handlingResizingRef.current = null;
       isResizingRef.current = false;
       setResizeState(null);
     };
@@ -260,6 +267,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   }, [
     gap,
     layout,
+    normalizedRenderedLayout,
     onLayoutChanged,
     onLayoutCommitted,
     resizeState,
@@ -438,6 +446,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       // Store every piece of information the resize gesture needs in one place
       // so mousemove can derive width without coordinating a separate ref.
+      handlingResizingRef.current = null;
       setResizeState({
         itemId: item.id,
         layoutAtResizeStart: normalizedRenderedLayout,
@@ -578,8 +587,6 @@ function haveSameGridLayout<T extends DraggableGridItem>(
         item.column === candidate.column
       );
     });
-
-  console.log('haveSameGridLayout: ', toReturn);
 
   return toReturn;
 }
