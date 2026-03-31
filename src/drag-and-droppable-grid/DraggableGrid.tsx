@@ -184,6 +184,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     // animate from their old slot into the new one.
     const nextRects = new Map<string, DOMRect>();
     const frameIds: number[] = [];
+    const resizeAnimationMs = Math.min(animationMs, 160);
 
     normalizedRenderedLayout.forEach((item) => {
       if (item.id === draggingId) {
@@ -199,8 +200,70 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       nextRects.set(item.id, element.getBoundingClientRect());
     });
 
-    if (resizeState !== null || gridResizeState !== null) {
-      // During active resizing we want direct manipulation, not FLIP motion.
+    if (resizeState !== null) {
+      // Keep neighboring items in direct-manipulation mode, but animate the
+      // actively resized card's size changes so width/height steps feel softer.
+      nextRects.forEach((_nextRect, itemId) => {
+        const element = itemRefs.current.get(itemId);
+
+        if (!element) {
+          return;
+        }
+
+        if (itemId !== resizeState.itemId) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = '';
+          return;
+        }
+
+        const previousRect = previousRectsRef.current.get(itemId);
+        const nextRect = nextRects.get(itemId);
+
+        if (!previousRect || !nextRect) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = 'top left';
+          return;
+        }
+
+        const deltaX = previousRect.left - nextRect.left;
+        const deltaY = previousRect.top - nextRect.top;
+        const scaleX = previousRect.width / nextRect.width;
+        const scaleY = previousRect.height / nextRect.height;
+
+        if (deltaX === 0 && deltaY === 0 && scaleX === 1 && scaleY === 1) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = 'top left';
+          return;
+        }
+
+        element.style.transformOrigin = 'top left';
+        element.style.transition = 'none';
+        element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
+
+        void element.getBoundingClientRect();
+
+        const frameId = window.requestAnimationFrame(() => {
+          element.style.transition = `transform ${resizeAnimationMs}ms cubic-bezier(0.2, 0, 0, 1)`;
+          element.style.transform = 'translate(0px, 0px) scale(1, 1)';
+        });
+
+        frameIds.push(frameId);
+      });
+
+      previousRectsRef.current = nextRects;
+
+      return () => {
+        frameIds.forEach((frameId) => {
+          window.cancelAnimationFrame(frameId);
+        });
+      };
+    }
+
+    if (gridResizeState !== null) {
+      // During overall grid resizing we still want direct manipulation.
       nextRects.forEach((_nextRect, itemId) => {
         const element = itemRefs.current.get(itemId);
 
@@ -210,6 +273,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
         element.style.transition = '';
         element.style.transform = '';
+        element.style.transformOrigin = '';
       });
 
       previousRectsRef.current = nextRects;
@@ -233,6 +297,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       element.style.transition = 'none';
       element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      element.style.transformOrigin = '';
 
       void element.getBoundingClientRect();
 
