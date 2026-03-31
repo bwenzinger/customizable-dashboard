@@ -11,11 +11,11 @@ import { Box } from '@mui/material';
 import { DraggableGridCell } from './DraggableGridCell';
 import { DebugGridOverlay } from './DebugGridOverlay';
 import {
+  clampItemWidth,
   getGridSlotFromPointer,
   getRequiredRowCount,
   getResizedColumnSpan,
   moveItemToGridSlot,
-  normalizeItemWidth,
   normalizeLayoutPositions,
   resizeItemInLayout,
 } from './gridMath';
@@ -69,6 +69,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   // Keep a normalized, collision-free version of the current committed layout
   // before it gets rendered or used as the basis for interaction math.
   const normalizedRenderedLayout = normalizeLayoutPositions(layout, numColumns);
+  console.log('normalizedRenderedLayout: ', normalizedRenderedLayout);
   const requiredRowCount = getRequiredRowCount(normalizedRenderedLayout);
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
@@ -210,7 +211,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       // Rebuild from the snapshot captured at resize start so the item keeps a
       // stable base position while its width changes.
-      const clampedWidth = normalizeItemWidth({
+      const clampedWidth = clampItemWidth({
         width: newWidth,
         minWidth: activeItem.minWidth,
         maxWidth: activeItem.maxWidth,
@@ -222,7 +223,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         width: clampedWidth,
         columns: numColumns,
       });
-      console.log('nextLayout: ', nextLayout);
+      // console.log('nextLayout: ', nextLayout);
 
       if (haveSameGridLayout(resizeState.layoutAtResizeStart, nextLayout)) {
         return;
@@ -494,7 +495,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       {normalizedRenderedLayout.map((item, index) => {
         const isDragging = item.id === draggingId;
-        const clampedWidth = normalizeItemWidth({
+        const clampedWidth = clampItemWidth({
           width: item.width,
           minWidth: item.minWidth,
           maxWidth: item.maxWidth,
@@ -565,7 +566,7 @@ function haveSameGridLayout<T extends DraggableGridItem>(
   first: T[],
   second: T[]
 ): boolean {
-  return (
+  const toReturn =
     first.length === second.length &&
     first.every((item, index) => {
       const candidate = second[index];
@@ -576,6 +577,9 @@ function haveSameGridLayout<T extends DraggableGridItem>(
         item.row === candidate.row &&
         item.column === candidate.column
       );
-    })
-  );
+    });
+
+  console.log('haveSameGridLayout: ', toReturn);
+
+  return toReturn;
 }

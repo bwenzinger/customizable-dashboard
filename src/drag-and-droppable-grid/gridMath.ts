@@ -220,7 +220,7 @@ export function clamp(
   return Math.min(Math.max(value, minValue), maxValue);
 }
 
-export function normalizeItemWidth(args: {
+export function clampItemWidth(args: {
   width: number;
   minWidth: number;
   maxWidth: number;
@@ -233,15 +233,12 @@ export function normalizeItemWidth(args: {
   return clamp(width, minAllowedWidth, maxAllowedWidth);
 }
 
-export function normalizeLayoutWidths<
-  T extends {
-    width: number;
-    minWidth: number;
-    maxWidth: number;
-  },
->(layout: T[], columns: number): T[] {
+export function normalizeLayoutWidths(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
   return layout.map((item) => {
-    const normalizedWidth = normalizeItemWidth({
+    const normalizedWidth = clampItemWidth({
       width: item.width,
       minWidth: item.minWidth,
       maxWidth: item.maxWidth,
@@ -249,8 +246,15 @@ export function normalizeLayoutWidths<
     });
 
     if (normalizedWidth === item.width) {
+      // if (item.id === 'e') {
+      //   console.log('normalizeLayoutWidths: ', item.width);
+      // }
       return item;
     }
+
+    // if (item.id === 'e') {
+    //   console.log('normalizeLayoutWidths: ', normalizedWidth);
+    // }
 
     return {
       ...item,
@@ -259,16 +263,10 @@ export function normalizeLayoutWidths<
   });
 }
 
-export function normalizeLayoutPositions<
-  T extends {
-    id: string;
-    width: number;
-    minWidth: number;
-    maxWidth: number;
-    row?: number;
-    column?: number;
-  },
->(layout: T[], columns: number): T[] {
+export function normalizeLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
   const occupiedCells = new Set<string>();
 
   return normalizeLayoutWidths(layout, columns).map((item) => {
@@ -284,7 +282,13 @@ export function normalizeLayoutPositions<
       startRow: desiredRow,
       startColumn: desiredColumn,
     });
-
+    // if (item.id === 'e') {
+    //   console.log('desiredRow', desiredRow);
+    //   console.log('maxColumnStart', maxColumnStart);
+    //   console.log('desiredColumn', desiredColumn);
+    //   console.log('placement', placement);
+    //   console.log('item.width', item.width);
+    // }
     markOccupiedCells({
       occupiedCells,
       row: placement.row,
@@ -304,22 +308,13 @@ export function normalizeLayoutPositions<
   });
 }
 
-export function moveItemToGridSlot<
-  T extends {
-    id: string;
-    width: number;
-    minWidth: number;
-    maxWidth: number;
-    row?: number;
-    column?: number;
-  },
->(args: {
-  layout: T[];
+export function moveItemToGridSlot(args: {
+  layout: DraggableGridItem[];
   itemId: string;
   row: number;
   column: number;
   columns: number;
-}): T[] {
+}): DraggableGridItem[] {
   const { layout, itemId, row, column, columns } = args;
   const movedItem = layout.find((item) => item.id === itemId);
 
@@ -501,16 +496,11 @@ function getOccupiedCellKey(row: number, column: number): string {
   return `${row}:${column}`;
 }
 
-function normalizeLayoutWithPriority<
-  T extends {
-    id: string;
-    width: number;
-    minWidth: number;
-    maxWidth: number;
-    row?: number;
-    column?: number;
-  },
->(args: { layout: T[]; prioritizedItem: T; columns: number }): T[] {
+function normalizeLayoutWithPriority(args: {
+  layout: DraggableGridItem[];
+  prioritizedItem: DraggableGridItem;
+  columns: number;
+}): DraggableGridItem[] {
   const { layout, prioritizedItem, columns } = args;
   const prioritizedLayout = [
     prioritizedItem,
