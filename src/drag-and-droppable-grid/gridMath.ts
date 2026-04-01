@@ -204,16 +204,34 @@ export function getResizedColumnSpan(args: {
   padding: number;
   parentCoords: DOMRect;
   clientX: number;
+  currentWidth: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold?: number;
 }): number {
-  const { containerWidth, columns, gap, padding, parentCoords, clientX } = args;
+  const {
+    containerWidth,
+    columns,
+    gap,
+    padding,
+    parentCoords,
+    clientX,
+    currentWidth,
+    resizeDirection,
+    stepThreshold = 0.9,
+  } = args;
   const availableWidth = containerWidth - padding * 2;
   const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
   const singleColumnWidth = innerWidth / columns;
   const columnStride = singleColumnWidth + gap;
   const distanceFromLeftToMouse = clientX - parentCoords.left;
-  const newWidth = Math.round((distanceFromLeftToMouse + gap) / columnStride);
+  const rawWidth = (distanceFromLeftToMouse + gap) / columnStride;
 
-  return newWidth;
+  return getDirectionalResizeSpan({
+    rawSpan: rawWidth,
+    currentSpan: currentWidth,
+    resizeDirection,
+    stepThreshold,
+  });
 }
 
 export function getResizedRowSpan(args: {
@@ -221,12 +239,29 @@ export function getResizedRowSpan(args: {
   clientY: number;
   rowHeight: number;
   gap: number;
+  currentHeight: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold?: number;
 }): number {
-  const { parentCoords, clientY, rowHeight, gap } = args;
+  const {
+    parentCoords,
+    clientY,
+    rowHeight,
+    gap,
+    currentHeight,
+    resizeDirection,
+    stepThreshold = 0.9,
+  } = args;
   const rowStride = rowHeight + gap;
   const distanceFromTopToMouse = clientY - parentCoords.top;
+  const rawHeight = (distanceFromTopToMouse + gap) / rowStride;
 
-  return Math.round((distanceFromTopToMouse + gap) / rowStride);
+  return getDirectionalResizeSpan({
+    rawSpan: rawHeight,
+    currentSpan: currentHeight,
+    resizeDirection,
+    stepThreshold,
+  });
 }
 
 export function clamp(
@@ -466,6 +501,32 @@ export function getGridSlotFromPointer(args: {
     row: clamp(rawRow, 1, maxRowStart),
     column: clamp(rawColumn, 1, maxColumnStart),
   };
+}
+
+function getDirectionalResizeSpan(args: {
+  rawSpan: number;
+  currentSpan: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold: number;
+}): number {
+  const {
+    rawSpan,
+    currentSpan,
+    resizeDirection,
+    stepThreshold,
+  } = args;
+  const clampedStepThreshold = clamp(stepThreshold, 0, 1);
+  const thresholdOffset = 1 - clampedStepThreshold;
+
+  if (resizeDirection === 'increase') {
+    return Math.max(currentSpan, Math.floor(rawSpan + thresholdOffset));
+  }
+
+  if (resizeDirection === 'decrease') {
+    return Math.min(currentSpan, Math.ceil(rawSpan - thresholdOffset));
+  }
+
+  return currentSpan;
 }
 
 function findNextAvailableSlot(args: {

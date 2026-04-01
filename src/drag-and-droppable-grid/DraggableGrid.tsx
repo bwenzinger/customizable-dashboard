@@ -51,6 +51,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   } = props;
   const containerPadding = 6;
   const gridResizeHandleHeight = 18;
+  const resizeStepThreshold = 0.5;
+  const pointerDirectionEpsilonPx = 0.9;
 
   const { activeBreakpoint, numColumns } = useDraggableGridInfo({
     columns,
@@ -74,6 +76,12 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const resizePointerStateRef = useRef<{
+    clientX: number;
+    clientY: number;
+    widthDirection: 'increase' | 'decrease' | null;
+    heightDirection: 'increase' | 'decrease' | null;
+  } | null>(null);
   const layoutHistoryRef = useRef<DraggableGridItem[][]>([]);
   const previousLayoutRef = useRef<DraggableGridItem[]>(layout);
   const createdImageUrlsRef = useRef<Set<string>>(new Set());
@@ -367,20 +375,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      const newWidth = getResizedColumnSpan({
-        containerWidth: ref?.current?.getBoundingClientRect().width,
-        columns: numColumns,
-        gap,
-        padding: containerPadding,
-        parentCoords: resizeState.parentCoords,
-        clientX: event.clientX,
-      });
-      const newHeight = getResizedRowSpan({
-        parentCoords: resizeState.parentCoords,
-        clientY: event.clientY,
-        rowHeight,
-        gap,
-      });
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
       );
@@ -391,6 +385,36 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       if (!activeItem || !currentItem) {
         return;
       }
+
+      const nextResizePointerState = getNextResizePointerState({
+        previousPointerState: resizePointerStateRef.current,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        pointerDirectionEpsilonPx,
+      });
+
+      resizePointerStateRef.current = nextResizePointerState;
+
+      const newWidth = getResizedColumnSpan({
+        containerWidth: ref.current.getBoundingClientRect().width,
+        columns: numColumns,
+        gap,
+        padding: containerPadding,
+        parentCoords: resizeState.parentCoords,
+        clientX: event.clientX,
+        currentWidth: currentItem.width,
+        resizeDirection: nextResizePointerState.widthDirection,
+        stepThreshold: resizeStepThreshold,
+      });
+      const newHeight = getResizedRowSpan({
+        parentCoords: resizeState.parentCoords,
+        clientY: event.clientY,
+        rowHeight,
+        gap,
+        currentHeight: getItemHeight(currentItem),
+        resizeDirection: nextResizePointerState.heightDirection,
+        stepThreshold: resizeStepThreshold,
+      });
 
       const clampedWidth = clampItemWidth({
         width: newWidth,
@@ -452,6 +476,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       handlingResizingRef.current = null;
       isResizingRef.current = false;
+      resizePointerStateRef.current = null;
       setResizeState(null);
     };
 
@@ -696,6 +721,12 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       // Store every piece of information the resize gesture needs in one place
       // so mousemove can derive width without coordinating a separate ref.
       handlingResizingRef.current = null;
+      resizePointerStateRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        widthDirection: null,
+        heightDirection: null,
+      };
       setResizeState({
         itemId: item.id,
         layoutAtResizeStart: normalizedRenderedLayout,
@@ -952,7 +983,10 @@ async function addDroppedImageItemsToLayout(args: {
       }
     })
   );
-  const nextLayout = normalizeLayoutPositions([...layout, ...imageItems], columns);
+  const nextLayout = normalizeLayoutPositions(
+    [...layout, ...imageItems],
+    columns
+  );
 
   onLayoutChanged(nextLayout);
   onLayoutCommitted(nextLayout, layout, 'drop');
@@ -1046,8 +1080,7 @@ function calculateSmartImageItemSize(args: {
   const maxWidthAtDropSlot = Math.max(1, totalColumns - startColumn + 1);
   const maxWidth = Math.max(1, Math.min(maxWidthAtDropSlot, totalColumns, 6));
   const maxHeight = 6;
-  const targetArea =
-    imageAspectRatio > 1.45 || imageAspectRatio < 0.7 ? 6 : 4;
+  const targetArea = imageAspectRatio > 1.45 || imageAspectRatio < 0.7 ? 6 : 4;
   let bestCandidate = {
     width: 2,
     height: 2,
@@ -1092,4 +1125,66 @@ function createImageGridItemId(): string {
   }
 
   return `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getNextResizePointerState(args: {
+  previousPointerState: {
+    clientX: number;
+    clientY: number;
+    widthDirection: 'increase' | 'decrease' | null;
+    heightDirection: 'increase' | 'decrease' | null;
+  } | null;
+  clientX: number;
+  clientY: number;
+  pointerDirectionEpsilonPx: number;
+}): {
+  clientX: number;
+  clientY: number;
+  widthDirection: 'increase' | 'decrease' | null;
+  heightDirection: 'increase' | 'decrease' | null;
+} {
+  const { previousPointerState, clientX, clientY, pointerDirectionEpsilonPx } =
+    args;
+
+  if (!previousPointerState) {
+    return {
+      clientX,
+      clientY,
+      widthDirection: null,
+      heightDirection: null,
+    };
+  }
+
+  return {
+    clientX,
+    clientY,
+    widthDirection: getResizeDirection({
+      delta: clientX - previousPointerState.clientX,
+      previousDirection: previousPointerState.widthDirection,
+      pointerDirectionEpsilonPx,
+    }),
+    heightDirection: getResizeDirection({
+      delta: clientY - previousPointerState.clientY,
+      previousDirection: previousPointerState.heightDirection,
+      pointerDirectionEpsilonPx,
+    }),
+  };
+}
+
+function getResizeDirection(args: {
+  delta: number;
+  previousDirection: 'increase' | 'decrease' | null;
+  pointerDirectionEpsilonPx: number;
+}): 'increase' | 'decrease' | null {
+  const { delta, previousDirection, pointerDirectionEpsilonPx } = args;
+
+  if (delta > pointerDirectionEpsilonPx) {
+    return 'increase';
+  }
+
+  if (delta < -pointerDirectionEpsilonPx) {
+    return 'decrease';
+  }
+
+  return previousDirection;
 }
