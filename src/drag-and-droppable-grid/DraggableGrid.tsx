@@ -42,7 +42,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     columns = 3,
     initialRowCount = 6,
     minRowCount = 4,
-    rowHeight = 140,
+    rowHeight = 75,
     showGridlines = false,
     gap = 12,
     className,

@@ -27,6 +27,8 @@ Draggable grid behavior preferences:
 - Preview movement should feel snappy and near-immediate, with only a very short dwell before updates appear.
 - Final layout changes should commit on drop, not during transient drag-over states.
 - Dragging should have a clear floating visual state while moving.
+- Dashboard card content should stay readable at the smallest 1x1 size.
+- For standard cards, prefer a simple title plus compact max-size and current-size chips over dense metadata blocks.
 
 Resize/grid preferences:
 

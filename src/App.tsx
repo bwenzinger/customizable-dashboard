@@ -100,6 +100,10 @@ function App() {
           isResizing: boolean
         ) => {
           const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
+          const itemHeight = item.height ?? 1;
+          const maxHeight = item.maxHeight ?? itemHeight;
+          const isCompactCard = item.width === 1 && itemHeight === 1;
+          const isNarrowCard = item.width === 1;
 
           if (item.imageSrc) {
             return (
@@ -143,17 +147,53 @@ function App() {
               <CardContent
                 sx={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  justifyContent: isCompactCard ? 'center' : 'space-between',
                   flex: 1,
-                  textAlign: 'center',
+                  minWidth: 0,
+                  gap: isCompactCard ? 1 : 1.5,
+                  p: `${isCompactCard ? 12 : 14}px !important`,
                 }}
               >
-                <Typography fontWeight={600}>
-                  {item.title} {item.minWidth}w - {item.maxWidth}w /{' '}
-                  {item.minHeight}h - {item.maxHeight}h ({item.width} x{' '}
-                  {item.height ?? 1})
+                <Typography
+                  sx={{
+                    color: 'text.primary',
+                    fontSize: isCompactCard
+                      ? '0.92rem'
+                      : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)',
+                    fontWeight: 700,
+                    lineHeight: 1.15,
+                    letterSpacing: '-0.01em',
+                    overflowWrap: 'anywhere',
+                    display: '-webkit-box',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: isCompactCard ? 2 : 3,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {item.title}
                 </Typography>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 0.75,
+                    alignItems: 'flex-start',
+                    mt: isCompactCard ? 'auto' : 0,
+                  }}
+                >
+                  <DashboardCardChip
+                    label="Max"
+                    value={`${item.maxWidth} x ${maxHeight}`}
+                    compact={isCompactCard || isNarrowCard}
+                  />
+                  <DashboardCardChip
+                    label="Current"
+                    value={`${item.width} x ${itemHeight}`}
+                    compact={isCompactCard || isNarrowCard}
+                  />
+                </Box>
               </CardContent>
             </Card>
           );
@@ -164,6 +204,63 @@ function App() {
 }
 
 export default App;
+
+type DashboardCardMetricProps = {
+  label: string;
+  value: string;
+  compact?: boolean;
+};
+
+function DashboardCardChip({
+  label,
+  value,
+  compact = false,
+}: DashboardCardMetricProps) {
+  return (
+    <Box
+      sx={{
+        minWidth: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: compact ? 0.5 : 0.65,
+        maxWidth: '100%',
+        borderRadius: 999,
+        border: '1px solid rgba(15, 23, 42, 0.08)',
+        bgcolor: 'rgba(15, 23, 42, 0.05)',
+        px: compact ? 0.85 : 1,
+        py: compact ? 0.55 : 0.65,
+      }}
+    >
+      <Typography
+        sx={{
+          color: 'text.secondary',
+          flexShrink: 0,
+          fontSize: compact ? '0.58rem' : '0.62rem',
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          lineHeight: 1,
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          color: 'text.primary',
+          fontFamily:
+            '"SFMono-Regular", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
+          fontSize: compact ? '0.76rem' : '0.82rem',
+          fontWeight: 700,
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  );
+}
 
 function getInteractiveCardSx(theme: Theme, isResizing: boolean) {
   if (!isResizing) {
