@@ -273,24 +273,40 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       });
 
       measuredItems.forEach(({ item, element }) => {
+        const previousRect = previousRectsRef.current.get(item.id);
         const currentVisualRect = currentVisualRects.get(item.id);
         const targetRect = targetRects.get(item.id);
         const isActiveItem = item.id === resizeState.itemId;
 
-        if (!currentVisualRect || !targetRect) {
+        if (!targetRect) {
           element.style.transition = '';
           element.style.transform = '';
           element.style.transformOrigin = isActiveItem ? 'top left' : '';
           return;
         }
 
-        const deltaX = currentVisualRect.left - targetRect.left;
-        const deltaY = currentVisualRect.top - targetRect.top;
+        const shouldStartFromCurrentVisualRect =
+          currentVisualRect !== undefined &&
+          !areRectsApproximatelyEqual(currentVisualRect, targetRect);
+        const startRect =
+          shouldStartFromCurrentVisualRect || !previousRect
+            ? currentVisualRect
+            : previousRect;
+
+        if (!startRect) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = isActiveItem ? 'top left' : '';
+          return;
+        }
+
+        const deltaX = startRect.left - targetRect.left;
+        const deltaY = startRect.top - targetRect.top;
         const scaleX = isActiveItem
-          ? currentVisualRect.width / targetRect.width
+          ? startRect.width / targetRect.width
           : 1;
         const scaleY = isActiveItem
-          ? currentVisualRect.height / targetRect.height
+          ? startRect.height / targetRect.height
           : 1;
         const hasSizeDelta = isActiveItem && (scaleX !== 1 || scaleY !== 1);
 
@@ -958,6 +974,19 @@ function haveSameGridLayout<T extends DraggableGridItem>(
     });
 
   return toReturn;
+}
+
+function areRectsApproximatelyEqual(
+  first: DOMRect,
+  second: DOMRect,
+  epsilon = 0.5
+): boolean {
+  return (
+    Math.abs(first.left - second.left) <= epsilon &&
+    Math.abs(first.top - second.top) <= epsilon &&
+    Math.abs(first.width - second.width) <= epsilon &&
+    Math.abs(first.height - second.height) <= epsilon
+  );
 }
 
 async function addDroppedImageItemsToLayout(args: {
