@@ -75,6 +75,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
+  const wasResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const resizePointerStateRef = useRef<{
     clientX: number;
@@ -215,78 +216,115 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   useLayoutEffect(() => {
     // Measure item positions after every preview/commit so neighboring cards can
     // animate from their old slot into the new one.
-    const nextRects = new Map<string, DOMRect>();
     const frameIds: number[] = [];
-    const resizeAnimationMs = Math.min(animationMs, 160);
-
-    normalizedRenderedLayout.forEach((item) => {
+    const resizeAnimationMs = Math.min(animationMs, 140);
+    const measuredItems = normalizedRenderedLayout.flatMap((item) => {
       if (item.id === draggingId) {
-        return;
+        return [];
       }
 
       const element = itemRefs.current.get(item.id);
 
       if (!element) {
-        return;
+        return [];
       }
 
-      nextRects.set(item.id, element.getBoundingClientRect());
+      return [{ item, element }];
     });
+    const elementsById = new Map(
+      measuredItems.map(({ item, element }) => [item.id, element])
+    );
+    const wasResizing = wasResizingRef.current;
+    wasResizingRef.current = resizeState !== null;
 
-    if (resizeState !== null) {
-      // Keep neighboring items in direct-manipulation mode, but animate the
-      // actively resized card's size changes so width/height steps feel softer.
-      nextRects.forEach((_nextRect, itemId) => {
-        const element = itemRefs.current.get(itemId);
+    if (wasResizing && resizeState === null) {
+      const settledRects = new Map<string, DOMRect>();
 
-        if (!element) {
-          return;
-        }
-
-        if (itemId !== resizeState.itemId) {
-          element.style.transition = '';
-          element.style.transform = '';
-          element.style.transformOrigin = '';
-          return;
-        }
-
-        const previousRect = previousRectsRef.current.get(itemId);
-        const nextRect = nextRects.get(itemId);
-
-        if (!previousRect || !nextRect) {
-          element.style.transition = '';
-          element.style.transform = '';
-          element.style.transformOrigin = 'top left';
-          return;
-        }
-
-        const deltaX = previousRect.left - nextRect.left;
-        const deltaY = previousRect.top - nextRect.top;
-        const scaleX = previousRect.width / nextRect.width;
-        const scaleY = previousRect.height / nextRect.height;
-
-        if (deltaX === 0 && deltaY === 0 && scaleX === 1 && scaleY === 1) {
-          element.style.transition = '';
-          element.style.transform = '';
-          element.style.transformOrigin = 'top left';
-          return;
-        }
-
-        element.style.transformOrigin = 'top left';
-        element.style.transition = 'none';
-        element.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`;
-
-        void element.getBoundingClientRect();
-
-        const frameId = window.requestAnimationFrame(() => {
-          element.style.transition = `transform ${resizeAnimationMs}ms cubic-bezier(0.2, 0, 0, 1)`;
-          element.style.transform = 'translate(0px, 0px) scale(1, 1)';
-        });
-
-        frameIds.push(frameId);
+      measuredItems.forEach(({ item, element }) => {
+        element.style.transition = '';
+        element.style.transform = '';
+        element.style.transformOrigin = '';
+        settledRects.set(item.id, element.getBoundingClientRect());
       });
 
-      previousRectsRef.current = nextRects;
+      previousRectsRef.current = settledRects;
+      return;
+    }
+
+    if (resizeState !== null) {
+      // Measure from each card's current on-screen position so repeated resize
+      // steps continue smoothly instead of restarting from stale rects.
+      const currentVisualRects = new Map<string, DOMRect>();
+      const targetRects = new Map<string, DOMRect>();
+
+      measuredItems.forEach(({ item, element }) => {
+        currentVisualRects.set(item.id, element.getBoundingClientRect());
+      });
+
+      measuredItems.forEach(({ item, element }) => {
+        element.style.transition = 'none';
+        element.style.transform = '';
+        element.style.transformOrigin =
+          item.id === resizeState.itemId ? 'top left' : '';
+      });
+
+      measuredItems.forEach(({ item, element }) => {
+        targetRects.set(item.id, element.getBoundingClientRect());
+      });
+
+      measuredItems.forEach(({ item, element }) => {
+        const currentVisualRect = currentVisualRects.get(item.id);
+        const targetRect = targetRects.get(item.id);
+        const isActiveItem = item.id === resizeState.itemId;
+
+        if (!currentVisualRect || !targetRect) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = isActiveItem ? 'top left' : '';
+          return;
+        }
+
+        const deltaX = currentVisualRect.left - targetRect.left;
+        const deltaY = currentVisualRect.top - targetRect.top;
+        const scaleX = isActiveItem
+          ? currentVisualRect.width / targetRect.width
+          : 1;
+        const scaleY = isActiveItem
+          ? currentVisualRect.height / targetRect.height
+          : 1;
+        const hasSizeDelta = isActiveItem && (scaleX !== 1 || scaleY !== 1);
+
+        if (deltaX === 0 && deltaY === 0 && !hasSizeDelta) {
+          element.style.transition = '';
+          element.style.transform = '';
+          element.style.transformOrigin = isActiveItem ? 'top left' : '';
+          return;
+        }
+
+        element.style.transformOrigin = isActiveItem ? 'top left' : '';
+        element.style.transition = 'none';
+        element.style.transform = isActiveItem
+          ? `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`
+          : `translate(${deltaX}px, ${deltaY}px)`;
+      });
+
+      if (measuredItems[0]) {
+        void measuredItems[0].element.getBoundingClientRect();
+      }
+
+      const frameId = window.requestAnimationFrame(() => {
+        measuredItems.forEach(({ item, element }) => {
+          const isActiveItem = item.id === resizeState.itemId;
+
+          element.style.transition = `transform ${resizeAnimationMs}ms cubic-bezier(0.2, 0, 0, 1)`;
+          element.style.transform = isActiveItem
+            ? 'translate(0px, 0px) scale(1, 1)'
+            : 'translate(0px, 0px)';
+        });
+      });
+
+      frameIds.push(frameId);
+      previousRectsRef.current = targetRects;
 
       return () => {
         frameIds.forEach((frameId) => {
@@ -297,25 +335,28 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
     if (gridResizeState !== null) {
       // During overall grid resizing we still want direct manipulation.
-      nextRects.forEach((_nextRect, itemId) => {
-        const element = itemRefs.current.get(itemId);
+      const nextRects = new Map<string, DOMRect>();
 
-        if (!element) {
-          return;
-        }
-
+      measuredItems.forEach(({ item, element }) => {
         element.style.transition = '';
         element.style.transform = '';
         element.style.transformOrigin = '';
+        nextRects.set(item.id, element.getBoundingClientRect());
       });
 
       previousRectsRef.current = nextRects;
       return;
     }
 
+    const nextRects = new Map<string, DOMRect>();
+
+    measuredItems.forEach(({ item, element }) => {
+      nextRects.set(item.id, element.getBoundingClientRect());
+    });
+
     nextRects.forEach((nextRect, itemId) => {
       const previousRect = previousRectsRef.current.get(itemId);
-      const element = itemRefs.current.get(itemId);
+      const element = elementsById.get(itemId);
 
       if (!previousRect || !element) {
         return;
