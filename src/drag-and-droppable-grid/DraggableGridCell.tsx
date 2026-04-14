@@ -69,7 +69,7 @@ export function DraggableGridCell(
       sx={{
         '--draggable-grid-hover-lift-y': isResizing ? '0px' : '-2px',
         position: 'relative',
-        zIndex: isDragging ? 4 : 1,
+        zIndex: isDragging ? 2 : 1,
         minWidth: 0,
         height: '100%',
         alignSelf: 'stretch',
@@ -77,11 +77,9 @@ export function DraggableGridCell(
         gridRow: `${rowStart} / span ${clampedHeight}`,
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
-        opacity: isDragging ? 0.92 : 1,
-        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
-        filter: isDragging
-          ? `drop-shadow(0 10px 20px ${alpha(theme.palette.common.black, 0.18)})`
-          : 'none',
+        opacity: isDragging ? 0.75 : 1,
+        transform: 'scale(1)',
+        filter: 'none',
         transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms ease, filter ${Math.min(animationMs, 120)}ms ease`,
       }}
     >

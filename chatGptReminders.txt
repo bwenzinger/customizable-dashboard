@@ -17,7 +17,13 @@ Draggable grid behavior preferences:
 - The drag location should feel anchored to where the user grabbed the card, not to the card’s left edge.
 - Dragging over items should feel soft and exploratory.
 - Other items should not immediately move just because the pointer passed over them.
-- Preview movement should only happen after the dragged item has been held in place briefly (about 0.5s).
+- Dragging should show a temporary draft/preview layout so users can see the likely landing spot and affected items before drop.
+- Drag previews should be derived from the drag-start layout snapshot rather than mutating committed layout during drag.
+- The actively dragged item can be treated as a special faded placeholder during drag.
+- Keep the dragged item visible in its original slot until the preview actually needs that space for another card.
+- Drag previews should clear when the pointer moves on or the drag ends; only drop should commit the layout change.
+- When moving between nearby drag targets, the preview should transition directly to the next target instead of animating back to the committed layout in between.
+- Preview movement should feel snappy and near-immediate, with only a very short dwell before updates appear.
 - Final layout changes should commit on drop, not during transient drag-over states.
 - Dragging should have a clear floating visual state while moving.
 

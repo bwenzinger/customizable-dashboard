@@ -53,6 +53,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const gridResizeHandleHeight = 18;
   const resizeStepThreshold = 0.5;
   const pointerDirectionEpsilonPx = 0.9;
+  const dragPreviewDelayMs = 120;
 
   const { activeBreakpoint, numColumns } = useDraggableGridInfo({
     columns,
@@ -66,6 +67,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   } | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState>(null);
   const [gridResizeState, setGridResizeState] = useState<GridResizeState>(null);
+  const [dragPreviewLayout, setDragPreviewLayout] = useState<
+    DraggableGridItem[] | null
+  >(null);
   const [rowCount, setRowCount] = useState<number>(
     Math.max(initialRowCount, minRowCount)
   );
@@ -77,6 +81,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const isResizingRef = useRef<boolean>(false);
   const wasResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const dragStartLayoutRef = useRef<DraggableGridItem[] | null>(null);
+  const dragPreviewTimeoutRef = useRef<number | null>(null);
+  const pendingDragPreviewTargetKeyRef = useRef<string | null>(null);
+  const activeDragPreviewTargetKeyRef = useRef<string | null>(null);
   const resizePointerStateRef = useRef<{
     clientX: number;
     clientY: number;
@@ -87,10 +95,36 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const previousLayoutRef = useRef<DraggableGridItem[]>(layout);
   const createdImageUrlsRef = useRef<Set<string>>(new Set());
 
-  // Keep a normalized, collision-free version of the current committed layout
-  // before it gets rendered or used as the basis for interaction math.
-  const normalizedRenderedLayout = normalizeLayoutPositions(layout, numColumns);
-  const requiredRowCount = getRequiredRowCount(normalizedRenderedLayout);
+  // Keep committed layout separate from the local drag preview so we can show
+  // a draft landing state without mutating parent state until drop.
+  const normalizedCommittedLayout = normalizeLayoutPositions(layout, numColumns);
+  const previewLayout = dragPreviewLayout ?? normalizedCommittedLayout;
+  const draggedCommittedItem = draggingId
+    ? normalizedCommittedLayout.find((item) => item.id === draggingId) ?? null
+    : null;
+  const previewItemsById = new Map(
+    previewLayout.map((item) => [item.id, item] as const)
+  );
+  const shouldKeepDraggedPlaceholder =
+    draggedCommittedItem !== null &&
+    !previewLayout.some(
+      (item) =>
+        item.id !== draggedCommittedItem.id &&
+        doGridItemsOverlap(item, draggedCommittedItem)
+    );
+  // Treat the actively dragged item as a special placeholder. Keep it visible
+  // at its origin until the preview actually needs that space for another card.
+  const renderedLayout =
+    draggingId && draggedCommittedItem
+      ? normalizedCommittedLayout.flatMap((item) => {
+          if (item.id === draggingId) {
+            return shouldKeepDraggedPlaceholder ? [draggedCommittedItem] : [];
+          }
+
+          return [previewItemsById.get(item.id) ?? item];
+        })
+      : previewLayout;
+  const requiredRowCount = getRequiredRowCount(previewLayout);
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
   const resolvedRowCount = Math.max(rowCount, minRowCount, requiredRowCount);
@@ -103,6 +137,21 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     },
     [onLayoutChanged]
   );
+
+  const clearPendingDragPreview = useCallback(() => {
+    if (dragPreviewTimeoutRef.current !== null) {
+      window.clearTimeout(dragPreviewTimeoutRef.current);
+      dragPreviewTimeoutRef.current = null;
+    }
+
+    pendingDragPreviewTargetKeyRef.current = null;
+  }, []);
+
+  const resetDragPreview = useCallback(() => {
+    clearPendingDragPreview();
+    activeDragPreviewTargetKeyRef.current = null;
+    setDragPreviewLayout(null);
+  }, [clearPendingDragPreview]);
 
   const recordCommittedLayout = useCallback(
     (
@@ -177,12 +226,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     const createdImageUrls = createdImageUrlsRef.current;
 
     return () => {
+      clearPendingDragPreview();
       createdImageUrls.forEach((imageUrl) => {
         URL.revokeObjectURL(imageUrl);
       });
       createdImageUrls.clear();
     };
-  }, []);
+  }, [clearPendingDragPreview]);
 
   useEffect(() => {
     if (!enableUndo) {
@@ -218,7 +268,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     // animate from their old slot into the new one.
     const frameIds: number[] = [];
     const resizeAnimationMs = Math.min(animationMs, 140);
-    const measuredItems = normalizedRenderedLayout.flatMap((item) => {
+    const measuredItems = renderedLayout.flatMap((item) => {
       if (item.id === draggingId) {
         return [];
       }
@@ -412,7 +462,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     animationMs,
     draggingId,
     gridResizeState,
-    normalizedRenderedLayout,
+    renderedLayout,
     resizeState,
   ]);
 
@@ -435,7 +485,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       const activeItem = resizeState.layoutAtResizeStart.find(
         (item) => item.id === resizeState.itemId
       );
-      const currentItem = normalizedRenderedLayout.find(
+      const currentItem = normalizedCommittedLayout.find(
         (item) => item.id === resizeState.itemId
       );
 
@@ -511,7 +561,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         columns: numColumns,
       });
 
-      if (haveSameGridLayout(normalizedRenderedLayout, nextLayout)) {
+      if (haveSameGridLayout(normalizedCommittedLayout, nextLayout)) {
         return;
       }
 
@@ -547,7 +597,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   }, [
     gap,
     layout,
-    normalizedRenderedLayout,
+    normalizedCommittedLayout,
     recordCommittedLayout,
     requestLayoutChange,
     resizeState,
@@ -615,6 +665,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         x: event.clientX - itemRect.left,
         y: event.clientY - itemRect.top,
       };
+      dragStartLayoutRef.current = normalizedCommittedLayout;
+      resetDragPreview();
       setDraggingId(itemId);
 
       event.dataTransfer.effectAllowed = 'move';
@@ -623,6 +675,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   const finishDrag = () => {
     dragPointerOffsetRef.current = null;
+    dragStartLayoutRef.current = null;
+    resetDragPreview();
     setDraggingId(null);
   };
 
@@ -630,12 +684,15 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     finishDrag();
   };
 
-  const getLayoutForPointer = useCallback(
+  const getDragPlacementForPointer = useCallback(
     (
       clientX: number,
       clientY: number,
       sourceLayout: DraggableGridItem[]
-    ): DraggableGridItem[] | null => {
+    ): {
+      layout: DraggableGridItem[];
+      slot: { row: number; column: number };
+    } | null => {
       const activeDraggingId = draggingId;
       const containerElement = ref.current;
 
@@ -665,13 +722,17 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         itemWidth: draggingItem.width,
         itemHeight: getItemHeight(draggingItem),
       });
-      return moveItemToGridSlot({
-        layout: sourceLayout,
-        itemId: activeDraggingId,
-        row: slot.row,
-        column: slot.column,
-        columns: numColumns,
-      });
+
+      return {
+        slot,
+        layout: moveItemToGridSlot({
+          layout: sourceLayout,
+          itemId: activeDraggingId,
+          row: slot.row,
+          column: slot.column,
+          columns: numColumns,
+        }),
+      };
     },
     [draggingId, gap, numColumns, ref, resolvedRowCount, rowHeight]
   );
@@ -710,8 +771,53 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       return;
     }
 
-    // Drag-over now only keeps the browser drop target active. We no longer
-    // maintain a separate local preview layout while the pointer is moving.
+    if (hasImageFiles(event.dataTransfer)) {
+      return;
+    }
+
+    const dragSourceLayout =
+      dragStartLayoutRef.current ?? normalizedCommittedLayout;
+    const previewResult = getDragPlacementForPointer(
+      event.clientX,
+      event.clientY,
+      dragSourceLayout
+    );
+
+    if (
+      !previewResult ||
+      haveSameGridLayout(dragSourceLayout, previewResult.layout)
+    ) {
+      resetDragPreview();
+      return;
+    }
+
+    const previewTargetKey = `${previewResult.slot.row}:${previewResult.slot.column}`;
+
+    if (
+      activeDragPreviewTargetKeyRef.current === previewTargetKey ||
+      pendingDragPreviewTargetKeyRef.current === previewTargetKey
+    ) {
+      return;
+    }
+
+    // Always derive previews from the drag-start snapshot so crossing over
+    // cards never leaves behind incremental layout drift. Keep the current
+    // preview visible until the next one is ready so cards don't animate
+    // back to the committed layout between nearby drag targets.
+    clearPendingDragPreview();
+    pendingDragPreviewTargetKeyRef.current = previewTargetKey;
+
+    const nextPreviewLayout = previewResult.layout;
+    dragPreviewTimeoutRef.current = window.setTimeout(() => {
+      if (pendingDragPreviewTargetKeyRef.current !== previewTargetKey) {
+        return;
+      }
+
+      pendingDragPreviewTargetKeyRef.current = null;
+      dragPreviewTimeoutRef.current = null;
+      activeDragPreviewTargetKeyRef.current = previewTargetKey;
+      setDragPreviewLayout(nextPreviewLayout);
+    }, dragPreviewDelayMs);
   };
 
   const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -728,7 +834,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
       void addDroppedImageItemsToLayout({
         files: droppedImageFiles,
-        layout: normalizedRenderedLayout,
+        layout: normalizedCommittedLayout,
         row: slot.row,
         column: slot.column,
         columns: numColumns,
@@ -740,20 +846,22 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       return;
     }
 
-    const hoverResult = getLayoutForPointer(
+    const dragSourceLayout =
+      dragStartLayoutRef.current ?? normalizedCommittedLayout;
+    const dropResult = getDragPlacementForPointer(
       event.clientX,
       event.clientY,
-      layout
+      dragSourceLayout
     );
     const committedLayout = normalizeLayoutPositions(
-      hoverResult ?? layout,
+      dropResult?.layout ?? dragSourceLayout,
       numColumns
     );
 
     // Persist the final layout only when the drag actually drops.
-    if (!haveSameGridLayout(layout, committedLayout)) {
+    if (!haveSameGridLayout(normalizedCommittedLayout, committedLayout)) {
       requestLayoutChange(committedLayout);
-      recordCommittedLayout(committedLayout, layout, 'drop');
+      recordCommittedLayout(committedLayout, normalizedCommittedLayout, 'drop');
     }
 
     finishDrag();
@@ -769,6 +877,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       event.stopPropagation();
 
       isResizingRef.current = true;
+      dragStartLayoutRef.current = null;
+      resetDragPreview();
       setDraggingId(null);
       const parentCoords =
         event.currentTarget.parentElement?.getBoundingClientRect();
@@ -786,7 +896,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       };
       setResizeState({
         itemId: item.id,
-        layoutAtResizeStart: normalizedRenderedLayout,
+        layoutAtResizeStart: normalizedCommittedLayout,
         parentCoords,
       });
     };
@@ -797,6 +907,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     event.preventDefault();
     event.stopPropagation();
 
+    resetDragPreview();
     setGridResizeState({
       startClientY: event.clientY,
       startRowCount: resolvedRowCount,
@@ -877,7 +988,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           />
         ) : null}
 
-        {normalizedRenderedLayout.map((item, index) => {
+        {renderedLayout.map((item, index) => {
           const isDragging = item.id === draggingId;
           const isResizing = item.id === resizeState?.itemId;
           const clampedWidth = clampItemWidth({
@@ -986,6 +1097,27 @@ function areRectsApproximatelyEqual(
     Math.abs(first.top - second.top) <= epsilon &&
     Math.abs(first.width - second.width) <= epsilon &&
     Math.abs(first.height - second.height) <= epsilon
+  );
+}
+
+function doGridItemsOverlap(
+  first: Pick<DraggableGridItem, 'row' | 'column' | 'width' | 'height'>,
+  second: Pick<DraggableGridItem, 'row' | 'column' | 'width' | 'height'>
+): boolean {
+  const firstRowStart = first.row ?? 1;
+  const firstColumnStart = first.column ?? 1;
+  const firstRowEnd = firstRowStart + getItemHeight(first) - 1;
+  const firstColumnEnd = firstColumnStart + first.width - 1;
+  const secondRowStart = second.row ?? 1;
+  const secondColumnStart = second.column ?? 1;
+  const secondRowEnd = secondRowStart + getItemHeight(second) - 1;
+  const secondColumnEnd = secondColumnStart + second.width - 1;
+
+  return !(
+    firstRowEnd < secondRowStart ||
+    secondRowEnd < firstRowStart ||
+    firstColumnEnd < secondColumnStart ||
+    secondColumnEnd < firstColumnStart
   );
 }
 
