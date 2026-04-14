@@ -1,201 +1,8 @@
-import { typedKeys } from './typedKeys';
 import type {
   DraggableGridBreakpoint,
   DraggableGridItem,
   DraggableGridResponsiveColumns,
 } from './types';
-
-export function reorderItems<T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number
-): T[] {
-  if (fromIndex === toIndex) {
-    return items;
-  }
-
-  const nextItems = [...items];
-  const movedItem = nextItems[fromIndex];
-
-  if (!movedItem) {
-    return items;
-  }
-
-  nextItems.splice(fromIndex, 1);
-  nextItems.splice(toIndex, 0, movedItem);
-
-  return nextItems;
-}
-
-export function shouldReorderOnOverlap(args: {
-  draggingRect: DOMRect | undefined;
-  targetRect: DOMRect;
-  clientX: number;
-  clientY: number;
-  overlapPx: number;
-}): boolean {
-  const { draggingRect, targetRect, clientX, clientY, overlapPx } = args;
-
-  if (!draggingRect) {
-    return (
-      clientY >= targetRect.top + Math.min(overlapPx, targetRect.height / 2)
-    );
-  }
-
-  // If both items visually occupy the same row, reorder based on horizontal
-  // overlap; otherwise use vertical overlap for cross-row movement.
-  const sameRow = hasMeaningfulVerticalOverlap(draggingRect, targetRect);
-
-  if (sameRow) {
-    const threshold = Math.min(overlapPx, targetRect.width / 2);
-    const draggingCenterX = draggingRect.left + draggingRect.width / 2;
-    const targetCenterX = targetRect.left + targetRect.width / 2;
-
-    if (draggingCenterX <= targetCenterX) {
-      return clientX >= targetRect.left + threshold;
-    }
-
-    return clientX <= targetRect.right - threshold;
-  }
-
-  const threshold = Math.min(overlapPx, targetRect.height / 2);
-  const draggingCenterY = draggingRect.top + draggingRect.height / 2;
-  const targetCenterY = targetRect.top + targetRect.height / 2;
-
-  if (draggingCenterY <= targetCenterY) {
-    return clientY >= targetRect.top + threshold;
-  }
-
-  return clientY <= targetRect.bottom - threshold;
-}
-
-export function findReorderIndexFromPointer<T extends { id: string }>(args: {
-  items: T[];
-  draggingId: string;
-  rectByItemId: Map<string, DOMRect>;
-  clientX: number;
-  clientY: number;
-}): number | null {
-  const { items, draggingId, rectByItemId, clientX, clientY } = args;
-  const rowTolerancePx = 8;
-  const visualItems = items
-    .filter((item) => item.id !== draggingId)
-    .map((item, index) => {
-      const rect = rectByItemId.get(item.id);
-
-      if (!rect) {
-        return null;
-      }
-
-      return {
-        itemId: item.id,
-        index,
-        rect,
-      };
-    })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort((first, second) => {
-      const topDelta = first.rect.top - second.rect.top;
-
-      if (Math.abs(topDelta) > rowTolerancePx) {
-        return topDelta;
-      }
-
-      return first.rect.left - second.rect.left;
-    });
-
-  if (visualItems.length === 0) {
-    return null;
-  }
-
-  const rows: Array<typeof visualItems> = [];
-
-  visualItems.forEach((item) => {
-    const lastRow = rows.at(-1);
-
-    if (
-      !lastRow ||
-      Math.abs(lastRow[0].rect.top - item.rect.top) > rowTolerancePx
-    ) {
-      rows.push([item]);
-      return;
-    }
-
-    lastRow.push(item);
-  });
-
-  for (const row of rows) {
-    const rowTop = Math.min(...row.map((item) => item.rect.top));
-    const rowBottom = Math.max(...row.map((item) => item.rect.bottom));
-
-    if (clientY < rowTop) {
-      return items.findIndex((item) => item.id === row[0].itemId);
-    }
-
-    if (clientY <= rowBottom) {
-      for (const item of row) {
-        if (clientX < item.rect.left + item.rect.width / 2) {
-          return items.findIndex((entry) => entry.id === item.itemId);
-        }
-      }
-
-      const lastItem = row[row.length - 1];
-
-      return items.findIndex((entry) => entry.id === lastItem.itemId) + 1;
-    }
-  }
-
-  return items.length - 1;
-}
-
-function hasMeaningfulVerticalOverlap(
-  firstRect: DOMRect,
-  secondRect: DOMRect
-): boolean {
-  const overlapTop = Math.max(firstRect.top, secondRect.top);
-  const overlapBottom = Math.min(firstRect.bottom, secondRect.bottom);
-  const overlapHeight = Math.max(0, overlapBottom - overlapTop);
-  const minimumRelevantOverlap =
-    Math.min(firstRect.height, secondRect.height) * 0.35;
-
-  return overlapHeight >= minimumRelevantOverlap;
-}
-
-export function isPointWithinRect(args: {
-  clientX: number;
-  clientY: number;
-  rect: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  };
-}): boolean {
-  const { clientX, clientY, rect } = args;
-
-  return (
-    clientX >= rect.left &&
-    clientX <= rect.right &&
-    clientY >= rect.top &&
-    clientY <= rect.bottom
-  );
-}
-
-export function expandRect(args: { rect: DOMRect; paddingPx: number }): {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-} {
-  const { rect, paddingPx } = args;
-
-  return {
-    left: rect.left - paddingPx,
-    right: rect.right + paddingPx,
-    top: rect.top - paddingPx,
-    bottom: rect.bottom + paddingPx,
-  };
-}
 
 export function getResizedColumnSpan(args: {
   containerWidth: number;
@@ -647,9 +454,15 @@ export function getNumColumns(args: {
 export function getActiveBreakpoint(
   matches: Record<DraggableGridBreakpoint, boolean>
 ): DraggableGridBreakpoint {
-  const breakpointKeys = typedKeys(matches);
+  const breakpointOrder: DraggableGridBreakpoint[] = [
+    'xl',
+    'lg',
+    'md',
+    'sm',
+    'xs',
+  ];
 
-  for (const breakpoint of breakpointKeys) {
+  for (const breakpoint of breakpointOrder) {
     if (matches[breakpoint]) {
       return breakpoint;
     }

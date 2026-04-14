@@ -1,7 +1,6 @@
 import { useMediaQuery, useTheme } from '@mui/material';
 import { getActiveBreakpoint, getNumColumns } from './gridMath';
 import type { DraggableGridProps } from './types';
-import { useMemo } from 'react';
 
 export function useDraggableGridInfo({
   columns,
@@ -23,13 +22,10 @@ export function useDraggableGridInfo({
   };
 
   const activeBreakpoint = getActiveBreakpoint(breakpointMatches);
-
-  const numColumns = useMemo(() => {
-    return getNumColumns({
-      columns,
-      activeBreakpoint,
-    });
-  }, [columns, activeBreakpoint]);
+  const numColumns = getNumColumns({
+    columns,
+    activeBreakpoint,
+  });
 
   return { activeBreakpoint, numColumns };
 }

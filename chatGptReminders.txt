@@ -58,3 +58,4 @@ General collaboration preferences:
 - If something seems worth explaining, add a code comment.
 - When a behavior is tricky, prefer clear structure and readability over cleverness.
 - If a design/interaction model is fundamentally fighting the desired UX, prefer rethinking the model instead of patching it repeatedly.
+- In drag/resize hot paths, prefer memoized derived data and stable DOM ref callbacks over duplicated React state or per-render callback churn.

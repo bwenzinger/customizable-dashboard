@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type DragEvent as ReactDragEvent,
@@ -74,9 +75,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const [rowCount, setRowCount] = useState<number>(
     Math.max(initialRowCount, minRowCount)
   );
-  const [historySize, setHistorySize] = useState(0);
+  const [canUndo, setCanUndo] = useState(false);
 
-  // const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRectsRef = useRef<Map<string, DOMRect>>(new Map());
   const isResizingRef = useRef<boolean>(false);
@@ -100,34 +100,73 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   // Keep committed layout separate from the local drag preview so we can show
   // a draft landing state without mutating parent state until drop.
-  const normalizedCommittedLayout = normalizeLayoutPositions(layout, numColumns);
-  const previewLayout = dragPreviewLayout ?? normalizedCommittedLayout;
-  const draggedCommittedItem = draggingId
-    ? normalizedCommittedLayout.find((item) => item.id === draggingId) ?? null
-    : null;
-  const previewItemsById = new Map(
-    previewLayout.map((item) => [item.id, item] as const)
+  const normalizedCommittedLayout = useMemo(
+    () => normalizeLayoutPositions(layout, numColumns),
+    [layout, numColumns]
   );
-  const shouldKeepDraggedPlaceholder =
-    draggedCommittedItem !== null &&
-    !previewLayout.some(
+  const previewLayout = useMemo(
+    () => dragPreviewLayout ?? normalizedCommittedLayout,
+    [dragPreviewLayout, normalizedCommittedLayout]
+  );
+  const draggedCommittedItem = useMemo(() => {
+    if (!draggingId) {
+      return null;
+    }
+
+    return normalizedCommittedLayout.find((item) => item.id === draggingId) ?? null;
+  }, [draggingId, normalizedCommittedLayout]);
+  const renderedLayout = useMemo(() => {
+    if (!draggingId || !draggedCommittedItem) {
+      return previewLayout;
+    }
+
+    const previewItemsById = new Map(
+      previewLayout.map((item) => [item.id, item] as const)
+    );
+    const shouldKeepDraggedPlaceholder = !previewLayout.some(
       (item) =>
         item.id !== draggedCommittedItem.id &&
         doGridItemsOverlap(item, draggedCommittedItem)
     );
-  // Treat the actively dragged item as a special placeholder. Keep it visible
-  // at its origin until the preview actually needs that space for another card.
-  const renderedLayout =
-    draggingId && draggedCommittedItem
-      ? normalizedCommittedLayout.flatMap((item) => {
-          if (item.id === draggingId) {
-            return shouldKeepDraggedPlaceholder ? [draggedCommittedItem] : [];
-          }
 
-          return [previewItemsById.get(item.id) ?? item];
-        })
-      : previewLayout;
-  const requiredRowCount = getRequiredRowCount(previewLayout);
+    // Treat the actively dragged item as a special placeholder. Keep it visible
+    // at its origin until the preview actually needs that space for another card.
+    return normalizedCommittedLayout.flatMap((item) => {
+      if (item.id === draggingId) {
+        return shouldKeepDraggedPlaceholder ? [draggedCommittedItem] : [];
+      }
+
+      return [previewItemsById.get(item.id) ?? item];
+    });
+  }, [
+    draggedCommittedItem,
+    draggingId,
+    normalizedCommittedLayout,
+    previewLayout,
+  ]);
+  const renderedItems = useMemo(
+    () =>
+      renderedLayout.map((item, index) => ({
+        item,
+        index,
+        clampedWidth: clampItemWidth({
+          width: item.width,
+          minWidth: item.minWidth,
+          maxWidth: item.maxWidth,
+          columns: numColumns,
+        }),
+        clampedHeight: clampItemHeight({
+          height: getItemHeight(item),
+          minHeight: item.minHeight ?? 1,
+          maxHeight: item.maxHeight ?? getItemHeight(item),
+        }),
+      })),
+    [numColumns, renderedLayout]
+  );
+  const requiredRowCount = useMemo(
+    () => getRequiredRowCount(previewLayout),
+    [previewLayout]
+  );
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
   const resolvedRowCount = Math.max(rowCount, minRowCount, requiredRowCount);
@@ -204,11 +243,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         enableUndo &&
         !haveSameGridLayout(normalizedPreviousLayout, normalizedNextLayout)
       ) {
-        layoutHistoryRef.current = [
-          ...layoutHistoryRef.current,
-          normalizedPreviousLayout,
-        ];
-        setHistorySize(layoutHistoryRef.current.length);
+        layoutHistoryRef.current.push(normalizedPreviousLayout);
+        setCanUndo(true);
       }
 
       onLayoutCommitted?.(
@@ -227,8 +263,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       return;
     }
 
-    layoutHistoryRef.current = layoutHistoryRef.current.slice(0, -1);
-    setHistorySize(layoutHistoryRef.current.length);
+    layoutHistoryRef.current.pop();
+    setCanUndo(layoutHistoryRef.current.length > 0);
     requestLayoutChange(previousLayout);
   }, [requestLayoutChange]);
 
@@ -280,7 +316,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      if (historySize === 0) {
+      if (!canUndo) {
         return;
       }
 
@@ -293,7 +329,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [enableUndo, handleUndo, historySize]);
+  }, [canUndo, enableUndo, handleUndo]);
 
   useLayoutEffect(() => {
     // Measure item positions after every preview/commit so neighboring cards can
@@ -670,14 +706,17 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     };
   }, [gap, gridResizeState, minRowCount, requiredRowCount, rowHeight]);
 
-  const setItemRef = (itemId: string) => (node: HTMLDivElement | null) => {
-    if (node) {
-      itemRefs.current.set(itemId, node);
-      return;
-    }
+  const setItemRef = useCallback(
+    (itemId: string, node: HTMLDivElement | null) => {
+      if (node) {
+        itemRefs.current.set(itemId, node);
+        return;
+      }
 
-    itemRefs.current.delete(itemId);
-  };
+      itemRefs.current.delete(itemId);
+    },
+    []
+  );
 
   const handleDragStart =
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
@@ -969,7 +1008,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
             variant="contained"
             color="inherit"
             onClick={handleUndo}
-            disabled={historySize === 0}
+            disabled={!canUndo}
             sx={{
               borderRadius: 999,
               px: 2,
@@ -1020,20 +1059,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           />
         ) : null}
 
-        {renderedLayout.map((item, index) => {
+        {renderedItems.map(({ item, index, clampedWidth, clampedHeight }) => {
           const isDragging = item.id === draggingId;
           const isResizing = item.id === resizeState?.itemId;
-          const clampedWidth = clampItemWidth({
-            width: item.width,
-            minWidth: item.minWidth,
-            maxWidth: item.maxWidth,
-            columns: numColumns,
-          });
-          const clampedHeight = clampItemHeight({
-            height: getItemHeight(item),
-            minHeight: item.minHeight ?? 1,
-            maxHeight: item.maxHeight ?? getItemHeight(item),
-          });
 
           return (
             <DraggableGridCell
@@ -1041,7 +1069,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               itemId={item.id}
               rowStart={item.row ?? 1}
               columnStart={item.column ?? 1}
-              setItemRef={setItemRef(item.id)}
+              setItemRef={setItemRef}
               isResizeDisabled={resizeState !== null}
               clampedWidth={clampedWidth}
               clampedHeight={clampedHeight}

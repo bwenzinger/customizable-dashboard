@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { alpha } from '@mui/material/styles';
 import { Box, useTheme } from '@mui/material';
 import type {
@@ -20,7 +21,7 @@ type DraggableGridCellProps = {
   animationMs: number;
   resizeHandleWidth: number;
   children: ReactNode;
-  setItemRef: (node: HTMLDivElement | null) => void;
+  setItemRef: (itemId: string, node: HTMLDivElement | null) => void;
   onDragStart: (event: ReactDragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
   onDragOver: (event: ReactDragEvent<HTMLDivElement>) => void;
@@ -50,6 +51,12 @@ export function DraggableGridCell(
     onDragOver,
     onResizeMouseDown,
   } = props;
+  const handleItemRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setItemRef(itemId, node);
+    },
+    [itemId, setItemRef]
+  );
   const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 24);
   const gripColor = alpha(theme.palette.text.secondary, 0.42);
   const activeGripColor = alpha(theme.palette.primary.main, 0.72);
@@ -59,8 +66,7 @@ export function DraggableGridCell(
 
   return (
     <Box
-      key={itemId}
-      ref={setItemRef}
+      ref={handleItemRef}
       draggable={!isResizeDisabled}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
