@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { Box, Button } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { DraggableGridCell } from './DraggableGridCell';
 import { DebugGridOverlay } from './DebugGridOverlay';
 import {
@@ -82,6 +83,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const wasResizingRef = useRef<boolean>(false);
   const dragPointerOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartLayoutRef = useRef<DraggableGridItem[] | null>(null);
+  const dragPreviewIndicatorRef = useRef<HTMLDivElement | null>(null);
+  const dragPreviewIndicatorKeyRef = useRef<string | null>(null);
   const dragPreviewTimeoutRef = useRef<number | null>(null);
   const pendingDragPreviewTargetKeyRef = useRef<string | null>(null);
   const activeDragPreviewTargetKeyRef = useRef<string | null>(null);
@@ -147,10 +150,39 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     pendingDragPreviewTargetKeyRef.current = null;
   }, []);
 
+  function updateDragPreviewIndicator(
+    nextSlot: { row: number; column: number } | null,
+    draggedItem: Pick<DraggableGridItem, 'width' | 'height'> | null
+  ) {
+    const indicatorElement = dragPreviewIndicatorRef.current;
+
+    if (!indicatorElement) {
+      return;
+    }
+
+    if (!nextSlot || !draggedItem) {
+      indicatorElement.style.display = 'none';
+      dragPreviewIndicatorKeyRef.current = null;
+      return;
+    }
+
+    const nextKey = `${nextSlot.row}:${nextSlot.column}:${draggedItem.width}:${getItemHeight(draggedItem)}`;
+
+    if (dragPreviewIndicatorKeyRef.current === nextKey) {
+      return;
+    }
+
+    dragPreviewIndicatorKeyRef.current = nextKey;
+    indicatorElement.style.display = 'block';
+    indicatorElement.style.gridColumn = `${nextSlot.column} / span ${draggedItem.width}`;
+    indicatorElement.style.gridRow = `${nextSlot.row} / span ${getItemHeight(draggedItem)}`;
+  }
+
   const resetDragPreview = useCallback(() => {
     clearPendingDragPreview();
     activeDragPreviewTargetKeyRef.current = null;
     setDragPreviewLayout(null);
+    updateDragPreviewIndicator(null, null);
   }, [clearPendingDragPreview]);
 
   const recordCommittedLayout = useCallback(
@@ -638,17 +670,14 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     };
   }, [gap, gridResizeState, minRowCount, requiredRowCount, rowHeight]);
 
-  const setItemRef = useCallback(
-    (itemId: string) => (node: HTMLDivElement | null) => {
-      if (node) {
-        itemRefs.current.set(itemId, node);
-        return;
-      }
+  const setItemRef = (itemId: string) => (node: HTMLDivElement | null) => {
+    if (node) {
+      itemRefs.current.set(itemId, node);
+      return;
+    }
 
-      itemRefs.current.delete(itemId);
-    },
-    []
-  );
+    itemRefs.current.delete(itemId);
+  };
 
   const handleDragStart =
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
@@ -768,10 +797,12 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       : 'move';
 
     if (resizeState || gridResizeState || isResizingRef.current) {
+      updateDragPreviewIndicator(null, null);
       return;
     }
 
     if (hasImageFiles(event.dataTransfer)) {
+      updateDragPreviewIndicator(null, null);
       return;
     }
 
@@ -782,6 +813,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       event.clientY,
       dragSourceLayout
     );
+    updateDragPreviewIndicator(previewResult?.slot ?? null, draggedCommittedItem);
 
     if (
       !previewResult ||
@@ -1027,6 +1059,27 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
             </DraggableGridCell>
           );
         })}
+
+        <Box
+          ref={dragPreviewIndicatorRef}
+          aria-hidden
+          sx={(currentTheme) => ({
+            display: 'none',
+            gridColumn: '1 / span 1',
+            gridRow: '1 / span 1',
+            minWidth: 0,
+            width: '100%',
+            height: '100%',
+            alignSelf: 'stretch',
+            justifySelf: 'stretch',
+            pointerEvents: 'none',
+            boxSizing: 'border-box',
+            borderRadius: '14px',
+            border: `2px dashed ${alpha(currentTheme.palette.primary.main, 0.5)}`,
+            backgroundColor: alpha(currentTheme.palette.primary.main, 0.05),
+            zIndex: 0,
+          })}
+        />
 
         <Box
           onMouseDown={handleGridResizeMouseDown}

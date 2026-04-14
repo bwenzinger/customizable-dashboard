@@ -23,6 +23,7 @@ Draggable grid behavior preferences:
 - Keep the dragged item visible in its original slot until the preview actually needs that space for another card.
 - Drag previews should clear when the pointer moves on or the drag ends; only drop should commit the layout change.
 - When moving between nearby drag targets, the preview should transition directly to the next target instead of animating back to the committed layout in between.
+- The dotted/dashed drop preview should stay lightweight in the dragover hot path; avoid extra React state when a ref-driven marker will do.
 - Preview movement should feel snappy and near-immediate, with only a very short dwell before updates appear.
 - Final layout changes should commit on drop, not during transient drag-over states.
 - Dragging should have a clear floating visual state while moving.
