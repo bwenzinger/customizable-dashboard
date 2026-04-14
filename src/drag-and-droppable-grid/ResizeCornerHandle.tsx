@@ -29,6 +29,7 @@ export function ResizeCornerHandle(
 
   return (
     <Box
+      className="draggable-grid-resize-handle"
       draggable={false}
       onDragStart={(event: ReactDragEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -44,8 +45,16 @@ export function ResizeCornerHandle(
         zIndex: 2,
         borderBottomRightRadius: 'inherit',
         overflow: 'hidden',
-        transition: `opacity ${Math.min(animationMs, 120)}ms ease`,
+        transform: 'translateY(0px)',
+        transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms cubic-bezier(0.2, 0, 0, 1)`,
         opacity: isResizing ? 1 : 0.9,
+        '.draggable-grid-cell:has(.draggable-grid-hover-sync:hover) &': {
+          transform: 'translateY(var(--draggable-grid-hover-lift-y, -2px))',
+        },
+        '.draggable-grid-cell:has(.draggable-grid-hover-sync):has(.draggable-grid-resize-handle:hover) &':
+          {
+            transform: 'translateY(var(--draggable-grid-hover-lift-y, -2px))',
+          },
       }}
     >
       <Box

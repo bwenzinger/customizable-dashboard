@@ -130,6 +130,7 @@ function App() {
 
           return (
             <Card
+              className="draggable-grid-hover-sync"
               sx={{
                 ...theme.customStyles.floatingCard,
                 ...interactiveCardSx,

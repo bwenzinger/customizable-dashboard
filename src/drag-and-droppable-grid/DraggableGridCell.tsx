@@ -53,6 +53,9 @@ export function DraggableGridCell(
   const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 24);
   const gripColor = alpha(theme.palette.text.secondary, 0.42);
   const activeGripColor = alpha(theme.palette.primary.main, 0.72);
+  const cellClassName = ['draggable-grid-cell', itemClassName]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <Box
@@ -62,8 +65,9 @@ export function DraggableGridCell(
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
-      className={itemClassName}
+      className={cellClassName}
       sx={{
+        '--draggable-grid-hover-lift-y': isResizing ? '0px' : '-2px',
         position: 'relative',
         zIndex: isDragging ? 4 : 1,
         minWidth: 0,

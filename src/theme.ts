@@ -4,6 +4,14 @@ import { createTheme } from '@mui/material/styles';
 // const PAGE_PADDING_BOTTOM = 20;
 const MAX_SHADOW_HORIZONTAL_GUTTER = 20; // this should be adjusted if customStyles -> interactiveCard boxShadow is updated
 const MAX_SHADOW_VERTICAL_GUTTER = 20; // this should be adjusted if customStyles -> interactiveCard boxShadow is updated
+const resizeHandleHoverSelector =
+  '.draggable-grid-cell:has(.draggable-grid-resize-handle:hover) &';
+const interactiveCardHoverStyles = {
+  transform: 'translateY(var(--draggable-grid-hover-lift-y, -2px))',
+  boxShadow:
+    '0px 4px 8px rgba(16, 24, 40, 0.06),0px 12px 24px rgba(16, 24, 40, 0.10)',
+  cursor: 'pointer',
+};
 
 // Create a theme instance.
 let theme = createTheme({
@@ -39,12 +47,8 @@ theme = createTheme(theme, {
     interactiveCard: {
       border: `1px solid ${theme.palette.grey[200]}`,
       borderRadius: '8px',
-      ':hover': {
-        transform: 'translateY(-2px)',
-        boxShadow:
-          '0px 4px 8px rgba(16, 24, 40, 0.06),0px 12px 24px rgba(16, 24, 40, 0.10)',
-        cursor: 'pointer',
-      },
+      ':hover': interactiveCardHoverStyles,
+      [resizeHandleHoverSelector]: interactiveCardHoverStyles,
       boxShadow: '0 2px 4px #0000000f',
     },
     shadowGutter: {
