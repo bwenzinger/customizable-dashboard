@@ -25,7 +25,11 @@ Resize/grid preferences:
 
 - Item resize-handle interactions should feel intentional and easy to understand.
 - The item resize handle should stay visually inside the card.
+- Hover/lift animations should move the resize handle with the card so it feels attached.
 - The resize handle style should be modern and subtle.
+- Resizing across multiple widths/heights should stay smooth and should not jitter or snap.
+- Width/height changes during resize should remain visibly animated rather than jumping instantly.
+- Neighboring cards should reposition smoothly during item resize.
 - The overall grid should support a resizable number of rows with visible empty space.
 - A bottom handle for increasing/decreasing total grid rows is desired.
 - Empty rows/space should be preserved as part of the layout model.
@@ -41,6 +45,9 @@ Undo/history preferences:
 
 General collaboration preferences:
 
+- Treat this file as the evolving knowledge base for the project.
+- Any durable code, UX, interaction, architecture, or workflow updates made during collaboration should be reflected here.
+- At the start of a new conversation, this file should be treated as the baseline project context and source of truth for established preferences/decisions.
 - If something seems worth explaining, add a code comment.
 - When a behavior is tricky, prefer clear structure and readability over cleverness.
 - If a design/interaction model is fundamentally fighting the desired UX, prefer rethinking the model instead of patching it repeatedly.
