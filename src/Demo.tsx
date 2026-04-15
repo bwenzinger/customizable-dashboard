@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { DashboardCard } from './ExampleDashboardCard';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
+import { getRequiredRowCount } from './drag-and-droppable-grid/gridMath';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
 
 const initialLayout: DraggableGridItem[] = [
@@ -59,6 +60,24 @@ function App() {
   const handleLayoutChanged = useCallback((nextLayout: DraggableGridItem[]) => {
     setLayout(nextLayout);
   }, []);
+  const handleAddItem = useCallback(() => {
+    setLayout((currentLayout) => {
+      const nextItemNumber =
+        currentLayout.filter((item) => item.imageSrc === undefined).length + 1;
+
+      return [
+        ...currentLayout,
+        {
+          id: createDemoGridItemId(),
+          title: `Card ${nextItemNumber}`,
+          width: 1,
+          height: 1,
+          row: getRequiredRowCount(currentLayout) + 1,
+          column: 1,
+        },
+      ];
+    });
+  }, []);
 
   return (
     <Box
@@ -70,6 +89,28 @@ function App() {
         overflow: 'hidden',
       }}
     >
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          left: 16,
+          zIndex: 10,
+        }}
+      >
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleAddItem}
+          sx={{
+            borderRadius: 999,
+            px: 2,
+            boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+          }}
+        >
+          Add Item
+        </Button>
+      </Box>
+
       <DraggableGridContextWrapper
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
@@ -95,3 +136,13 @@ function App() {
 }
 
 export default App;
+
+function createDemoGridItemId(): string {
+  const randomId = globalThis.crypto?.randomUUID?.();
+
+  if (randomId) {
+    return `demo-item-${randomId}`;
+  }
+
+  return `demo-item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}

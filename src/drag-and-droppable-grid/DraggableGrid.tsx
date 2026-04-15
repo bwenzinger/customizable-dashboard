@@ -101,6 +101,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   const dragPreviewTimeoutRef = useRef<number | null>(null);
   const pendingDragPreviewTargetKeyRef = useRef<string | null>(null);
   const activeDragPreviewTargetKeyRef = useRef<string | null>(null);
+  const pendingLayoutChangeSourceRef = useRef<
+    'internalTransient' | 'internalCommit' | 'normalization' | 'undo' | null
+  >(null);
   const resizePointerStateRef = useRef<{
     clientX: number;
     clientY: number;
@@ -108,7 +111,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     heightDirection: 'increase' | 'decrease' | null;
   } | null>(null);
   const layoutHistoryRef = useRef<DraggableGridItem[][]>([]);
-  const previousLayoutRef = useRef<DraggableGridItem[]>(layout);
+  const previousLayoutRef = useRef<DraggableGridItem[]>(
+    normalizeLayoutPositions(layout, numColumns)
+  );
   const createdImageUrlsRef = useRef<Set<string>>(new Set());
 
   // Keep committed layout separate from the local drag preview so we can show
@@ -187,7 +192,15 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     resolvedRowCount * rowHeight + Math.max(0, resolvedRowCount - 1) * gap;
 
   const requestLayoutChange = useCallback(
-    (nextLayout: DraggableGridItem[]) => {
+    (
+      nextLayout: DraggableGridItem[],
+      source:
+        | 'internalTransient'
+        | 'internalCommit'
+        | 'normalization'
+        | 'undo' = 'internalTransient'
+    ) => {
+      pendingLayoutChangeSourceRef.current = source;
       onLayoutChanged(nextLayout);
     },
     [onLayoutChanged]
@@ -279,7 +292,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
     layoutHistoryRef.current.pop();
     setCanUndo(layoutHistoryRef.current.length > 0);
-    requestLayoutChange(previousLayout);
+    requestLayoutChange(previousLayout, 'undo');
   }, [requestLayoutChange]);
 
   useEffect(() => {
@@ -288,9 +301,32 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     const normalizedLayout = normalizeLayoutPositions(layout, numColumns);
 
     if (!haveSameGridLayout(layout, normalizedLayout)) {
-      requestLayoutChange(normalizedLayout);
+      requestLayoutChange(normalizedLayout, 'normalization');
     }
   }, [layout, numColumns, requestLayoutChange]);
+
+  useEffect(() => {
+    const pendingLayoutChangeSource = pendingLayoutChangeSourceRef.current;
+    const previousLayout = previousLayoutRef.current;
+    const normalizedPreviousLayout = normalizeLayoutPositions(
+      previousLayout,
+      numColumns
+    );
+    const normalizedLayout = normalizeLayoutPositions(layout, numColumns);
+
+    pendingLayoutChangeSourceRef.current = null;
+
+    if (
+      enableUndo &&
+      pendingLayoutChangeSource === null &&
+      !haveSameGridLayout(normalizedPreviousLayout, normalizedLayout)
+    ) {
+      layoutHistoryRef.current.push(normalizedPreviousLayout);
+      queueMicrotask(() => {
+        setCanUndo(layoutHistoryRef.current.length > 0);
+      });
+    }
+  }, [enableUndo, layout, numColumns]);
 
   useEffect(() => {
     const previousLayout = previousLayoutRef.current;
@@ -647,7 +683,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         return;
       }
 
-      requestLayoutChange(nextLayout);
+      requestLayoutChange(nextLayout, 'internalTransient');
     };
 
     const finishResize = () => {
@@ -924,7 +960,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         column: slot.column,
         columns: numColumns,
         createdImageUrls: createdImageUrlsRef.current,
-        onLayoutChanged: requestLayoutChange,
+        onLayoutChanged: (nextLayout) => {
+          requestLayoutChange(nextLayout, 'internalCommit');
+        },
         onLayoutCommitted: recordCommittedLayout,
       });
       finishDrag();
@@ -945,7 +983,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
     // Persist the final layout only when the drag actually drops.
     if (!haveSameGridLayout(normalizedCommittedLayout, committedLayout)) {
-      requestLayoutChange(committedLayout);
+      requestLayoutChange(committedLayout, 'internalCommit');
       recordCommittedLayout(committedLayout, normalizedCommittedLayout, 'drop');
     }
 
