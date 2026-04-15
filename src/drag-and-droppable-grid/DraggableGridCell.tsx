@@ -16,7 +16,8 @@ type DraggableGridCellProps = {
   clampedHeight: number;
   isDragging: boolean;
   isResizing: boolean;
-  isResizeDisabled: boolean;
+  isDragDisabled: boolean;
+  isResizeHandleVisible: boolean;
   itemClassName?: string;
   animationMs: number;
   resizeHandleWidth: number;
@@ -40,7 +41,8 @@ export function DraggableGridCell(
     clampedHeight,
     isDragging,
     isResizing,
-    isResizeDisabled,
+    isDragDisabled,
+    isResizeHandleVisible,
     itemClassName,
     animationMs,
     resizeHandleWidth,
@@ -67,7 +69,7 @@ export function DraggableGridCell(
   return (
     <Box
       ref={handleItemRef}
-      draggable={!isResizeDisabled}
+      draggable={!isDragDisabled}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
@@ -81,24 +83,33 @@ export function DraggableGridCell(
         alignSelf: 'stretch',
         gridColumn: `${columnStart} / span ${clampedWidth}`,
         gridRow: `${rowStart} / span ${clampedHeight}`,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: isDragDisabled ? 'default' : isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         opacity: isDragging ? 0.75 : 1,
         transform: 'scale(1)',
         filter: 'none',
         transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms ease, filter ${Math.min(animationMs, 120)}ms ease`,
+        ...(isDragDisabled
+          ? {
+              '& *': {
+                cursor: 'default !important',
+              },
+            }
+          : {}),
       }}
     >
       {children}
 
-      <ResizeCornerHandle
-        gripColor={gripColor}
-        activeGripColor={activeGripColor}
-        isResizing={isResizing}
-        animationMs={animationMs}
-        visibleResizeHandleWidth={visibleResizeHandleWidth}
-        onResizeMouseDown={onResizeMouseDown}
-      />
+      {isResizeHandleVisible ? (
+        <ResizeCornerHandle
+          gripColor={gripColor}
+          activeGripColor={activeGripColor}
+          isResizing={isResizing}
+          animationMs={animationMs}
+          visibleResizeHandleWidth={visibleResizeHandleWidth}
+          onResizeMouseDown={onResizeMouseDown}
+        />
+      ) : null}
     </Box>
   );
 }

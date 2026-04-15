@@ -5,8 +5,16 @@ import {
   type ChangeEvent,
   type MouseEvent,
 } from 'react';
-import { Box, Button, ListItemText, Menu, MenuItem } from '@mui/material';
-import { DashboardCard } from './ExampleDashboardCard';
+import {
+  Box,
+  Button,
+  FormControlLabel,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Switch,
+} from '@mui/material';
+import { ExampleDashboardCard } from './ExampleDashboardCard';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
 import { getRequiredRowCount } from './drag-and-droppable-grid/gridMath';
 import type {
@@ -133,6 +141,7 @@ const initialLayout: DraggableGridItem[] = [
 
 function App() {
   const [layout, setLayout] = useState<DraggableGridItem[]>(initialLayout);
+  const [canEdit, setCanEdit] = useState(true);
   const [addMenuAnchor, setAddMenuAnchor] = useState<HTMLElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const isAddMenuOpen = Boolean(addMenuAnchor);
@@ -166,15 +175,36 @@ function App() {
   );
 
   const handleOpenAddMenu = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    if (!canEdit) {
+      return;
+    }
+
     setAddMenuAnchor(event.currentTarget);
-  }, []);
+  }, [canEdit]);
 
   const handleCloseAddMenu = useCallback(() => {
     setAddMenuAnchor(null);
   }, []);
 
+  const handleEditModeChanged = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const nextCanEdit = event.target.checked;
+
+      setCanEdit(nextCanEdit);
+
+      if (!nextCanEdit) {
+        handleCloseAddMenu();
+      }
+    },
+    [handleCloseAddMenu]
+  );
+
   const handleAddItemOption = useCallback(
     (option: AddItemOption) => {
+      if (!canEdit) {
+        return;
+      }
+
       handleCloseAddMenu();
 
       if (option.id === 'image') {
@@ -186,7 +216,7 @@ function App() {
         appendDashboardItem(option.buildItem);
       }
     },
-    [appendDashboardItem, handleCloseAddMenu]
+    [appendDashboardItem, canEdit, handleCloseAddMenu]
   );
 
   const handleImageFileSelected = useCallback(
@@ -195,7 +225,7 @@ function App() {
 
       event.currentTarget.value = '';
 
-      if (!selectedFile) {
+      if (!canEdit || !selectedFile) {
         return;
       }
 
@@ -217,7 +247,7 @@ function App() {
 
       fileReader.readAsDataURL(selectedFile);
     },
-    [appendDashboardItem]
+    [appendDashboardItem, canEdit]
   );
 
   return (
@@ -236,13 +266,42 @@ function App() {
           top: 16,
           left: 16,
           zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
         }}
       >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={canEdit}
+              onChange={handleEditModeChanged}
+              color="primary"
+            />
+          }
+          label={canEdit ? 'Editing' : 'Viewing'}
+          sx={{
+            borderRadius: 999,
+            bgcolor: '#ffffff',
+            boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+            m: 0,
+            pl: 1.25,
+            pr: 1.6,
+            py: 0.25,
+            '& .MuiFormControlLabel-label': {
+              color: 'text.primary',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+            },
+          }}
+        />
+
         <Button
           id="add-dashboard-item-button"
           variant="contained"
           color="primary"
           onClick={handleOpenAddMenu}
+          disabled={!canEdit}
           aria-controls={isAddMenuOpen ? 'add-dashboard-item-menu' : undefined}
           aria-expanded={isAddMenuOpen ? 'true' : undefined}
           aria-haspopup="menu"
@@ -257,7 +316,7 @@ function App() {
         <Menu
           id="add-dashboard-item-menu"
           anchorEl={addMenuAnchor}
-          open={isAddMenuOpen}
+          open={canEdit && isAddMenuOpen}
           onClose={handleCloseAddMenu}
           MenuListProps={{
             'aria-labelledby': 'add-dashboard-item-button',
@@ -305,6 +364,7 @@ function App() {
           ref={imageInputRef}
           type="file"
           accept="image/*"
+          disabled={!canEdit}
           onChange={handleImageFileSelected}
           sx={{
             display: 'none',
@@ -315,19 +375,20 @@ function App() {
       <DraggableGridContextWrapper
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
+        canEdit={canEdit}
         enableUndo={true}
         enableCollapse={true}
         enableOptimize={true}
         columns={10}
         gap={16}
-        // showGridlines={true}
+        showGridlines={true}
         renderItem={(
           item: DraggableGridItem,
           _index: number,
           isDragging: boolean,
           isResizing: boolean
         ) => (
-          <DashboardCard
+          <ExampleDashboardCard
             item={item}
             isDragging={isDragging}
             isResizing={isResizing}

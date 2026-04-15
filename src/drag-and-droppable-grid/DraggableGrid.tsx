@@ -65,6 +65,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     itemClassName,
     animationMs = 320,
     resizeHandleWidth = 12,
+    canEdit = false,
     enableUndo = false,
     enableCollapse = false,
     enableOptimize = false,
@@ -201,6 +202,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
   const resolvedRowCount = Math.max(rowCount, minRowCount, requiredRowCount);
+  const gridResizeFooterHeight = canEdit ? gridResizeHandleHeight + 8 : 0;
   const gridContentHeight =
     resolvedRowCount * rowHeight + Math.max(0, resolvedRowCount - 1) * gap;
 
@@ -280,6 +282,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       );
 
       if (
+        canEdit &&
         enableUndo &&
         !haveSameGridLayout(normalizedPreviousLayout, normalizedNextLayout)
       ) {
@@ -293,10 +296,14 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         reason
       );
     },
-    [enableUndo, numColumns, onLayoutCommitted]
+    [canEdit, enableUndo, numColumns, onLayoutCommitted]
   );
 
   const handleUndo = useCallback(() => {
+    if (!canEdit) {
+      return;
+    }
+
     const previousLayout = layoutHistoryRef.current.at(-1);
 
     if (!previousLayout) {
@@ -306,9 +313,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     layoutHistoryRef.current.pop();
     setCanUndo(layoutHistoryRef.current.length > 0);
     requestLayoutChange(previousLayout, 'undo');
-  }, [requestLayoutChange]);
+  }, [canEdit, requestLayoutChange]);
 
   const canRunLayoutAction =
+    canEdit &&
     draggingId === null &&
     resizeState === null &&
     gridResizeState === null;
@@ -371,6 +379,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     pendingLayoutChangeSourceRef.current = null;
 
     if (
+      canEdit &&
       enableUndo &&
       pendingLayoutChangeSource === null &&
       !haveSameGridLayout(normalizedPreviousLayout, normalizedLayout)
@@ -380,7 +389,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         setCanUndo(layoutHistoryRef.current.length > 0);
       });
     }
-  }, [enableUndo, layout, numColumns]);
+  }, [canEdit, enableUndo, layout, numColumns]);
 
   useEffect(() => {
     const previousLayout = previousLayoutRef.current;
@@ -407,7 +416,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
   }, [clearPendingDragPreview]);
 
   useEffect(() => {
-    if (!enableUndo) {
+    if (!canEdit || !enableUndo) {
       return;
     }
 
@@ -433,7 +442,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [canUndo, enableUndo, handleUndo]);
+  }, [canEdit, canUndo, enableUndo, handleUndo]);
 
   useLayoutEffect(() => {
     // Measure item positions after every preview/commit so neighboring cards can
@@ -824,7 +833,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   const handleDragStart =
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
-      if (resizeState || gridResizeState || isResizingRef.current) {
+      if (!canEdit || resizeState || gridResizeState || isResizingRef.current) {
         event.preventDefault();
         return;
       }
@@ -935,6 +944,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   const handleContainerDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
+
+    if (!canEdit) {
+      event.dataTransfer.dropEffect = 'none';
+      updateDragPreviewIndicator(null, null);
+      return;
+    }
+
     event.dataTransfer.dropEffect = hasImageFiles(event.dataTransfer)
       ? 'copy'
       : 'move';
@@ -997,6 +1013,12 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   const handleContainerDrop = (event: ReactDragEvent<HTMLDivElement>) => {
     event.preventDefault();
+
+    if (!canEdit) {
+      finishDrag();
+      return;
+    }
+
     const droppedImageFiles = getImageFiles(event.dataTransfer);
 
     if (droppedImageFiles.length > 0) {
@@ -1053,6 +1075,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       event.preventDefault();
       event.stopPropagation();
 
+      if (!canEdit) {
+        return;
+      }
+
       isResizingRef.current = true;
       dragStartLayoutRef.current = null;
       resetDragPreview();
@@ -1084,6 +1110,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     event.preventDefault();
     event.stopPropagation();
 
+    if (!canEdit) {
+      return;
+    }
+
     resetDragPreview();
     setGridResizeState({
       startClientY: event.clientY,
@@ -1101,7 +1131,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         overflowY: 'auto',
       }}
     >
-      {enableUndo || enableCollapse || enableOptimize ? (
+      {canEdit && (enableUndo || enableCollapse || enableOptimize) ? (
         <Box
           sx={{
             position: 'absolute',
@@ -1179,8 +1209,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           minHeight:
             gridContentHeight +
             containerPadding * 2 +
-            gridResizeHandleHeight +
-            8,
+            gridResizeFooterHeight,
           display: 'grid',
           gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${resolvedRowCount}, ${rowHeight}px)`,
@@ -1191,7 +1220,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           justifyContent: 'start',
           overflow: 'hidden',
           padding: containerPadding,
-          paddingBottom: `${containerPadding + gridResizeHandleHeight + 8}px`,
+          paddingBottom: `${containerPadding + gridResizeFooterHeight}px`,
         }}
       >
         {showGridlines ? (
@@ -1216,7 +1245,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               rowStart={item.row ?? 1}
               columnStart={item.column ?? 1}
               setItemRef={setItemRef}
-              isResizeDisabled={resizeState !== null}
+              isDragDisabled={
+                !canEdit || resizeState !== null || gridResizeState !== null
+              }
+              isResizeHandleVisible={canEdit}
               clampedWidth={clampedWidth}
               clampedHeight={clampedHeight}
               isDragging={isDragging}
@@ -1255,39 +1287,41 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           })}
         />
 
-        <Box
-          onMouseDown={handleGridResizeMouseDown}
-          sx={{
-            position: 'absolute',
-            top: `${gridContentHeight + containerPadding + 8}px`,
-            left: '50%',
-            width: 72,
-            height: gridResizeHandleHeight,
-            transform: 'translateX(-50%)',
-            borderRadius: 999,
-            cursor: 'ns-resize',
-            zIndex: 3,
-            bgcolor: 'rgba(15, 23, 42, 0.08)',
-            border: '1px solid rgba(15, 23, 42, 0.12)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}
-        >
-          {/* Bottom handle for changing the total number of available rows. */}
-          {Array.from({ length: 3 }, (_, index) => (
-            <Box
-              key={`grid-row-handle-${index}`}
-              sx={{
-                width: 14,
-                height: '2px',
-                borderRadius: 999,
-                bgcolor: 'rgba(15, 23, 42, 0.45)',
-              }}
-            />
-          ))}
-        </Box>
+        {canEdit ? (
+          <Box
+            onMouseDown={handleGridResizeMouseDown}
+            sx={{
+              position: 'absolute',
+              top: `${gridContentHeight + containerPadding + 8}px`,
+              left: '50%',
+              width: 72,
+              height: gridResizeHandleHeight,
+              transform: 'translateX(-50%)',
+              borderRadius: 999,
+              cursor: 'ns-resize',
+              zIndex: 3,
+              bgcolor: 'rgba(15, 23, 42, 0.08)',
+              border: '1px solid rgba(15, 23, 42, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+            }}
+          >
+            {/* Bottom handle for changing the total number of available rows. */}
+            {Array.from({ length: 3 }, (_, index) => (
+              <Box
+                key={`grid-row-handle-${index}`}
+                sx={{
+                  width: 14,
+                  height: '2px',
+                  borderRadius: 999,
+                  bgcolor: 'rgba(15, 23, 42, 0.45)',
+                }}
+              />
+            ))}
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );

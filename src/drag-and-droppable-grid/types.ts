@@ -44,6 +44,7 @@ export type DraggableGridProps = {
   itemClassName?: string;
   animationMs?: number;
   resizeHandleWidth?: number;
+  canEdit?: boolean;
   enableUndo?: boolean;
   enableCollapse?: boolean;
   enableOptimize?: boolean;

@@ -15,7 +15,7 @@ type DashboardCardProps = {
   isResizing: boolean;
 };
 
-export function DashboardCard(
+export function ExampleDashboardCard(
   props: DashboardCardProps
 ): React.JSX.Element {
   const { item, isDragging, isResizing } = props;
