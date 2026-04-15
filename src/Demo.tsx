@@ -64,7 +64,7 @@ const addItemOptions: AddItemOption[] = [
     buildItem: (nextItemNumber) => ({
       kind: 'richText',
       title: `Notes ${nextItemNumber}`,
-      body: 'Use this space for announcements, handoff notes, or dashboard context.',
+      body: '<p><strong>Use this space</strong> for announcements, handoff notes, or dashboard context.</p>',
       width: 3,
       height: 2,
     }),
@@ -149,6 +149,24 @@ function App() {
   const handleLayoutChanged = useCallback((nextLayout: DraggableGridItem[]) => {
     setLayout(nextLayout);
   }, []);
+
+  const handleDashboardItemChanged = useCallback(
+    (
+      itemId: string,
+      updates: Partial<Omit<DraggableGridItem, 'id'>>
+    ) => {
+      if (!canEdit) {
+        return;
+      }
+
+      setLayout((currentLayout) =>
+        currentLayout.map((item) =>
+          item.id === itemId ? { ...item, ...updates } : item
+        )
+      );
+    },
+    [canEdit]
+  );
 
   const appendDashboardItem = useCallback(
     (
@@ -392,6 +410,8 @@ function App() {
             item={item}
             isDragging={isDragging}
             isResizing={isResizing}
+            canEdit={canEdit}
+            onItemChanged={handleDashboardItemChanged}
           />
         )}
       />

@@ -36,6 +36,9 @@ Draggable grid behavior preferences:
 - In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
 - Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
 - The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
+- Rich text dashboard items should use an actual editable rich text surface in edit mode, save their HTML output to the item body, and render the saved output in viewing mode.
+- Rich text edit/view mode should preserve the same sanitized output, including safe inline styles for color, highlight, font size, font family, alignment, line height, and text decorations.
+- Text editing surfaces inside cards should opt out of grid drag gestures and grid-level Ctrl/Cmd+Z so typing, selecting, formatting, and native editor undo feel normal.
 
 Resize/grid preferences:
 

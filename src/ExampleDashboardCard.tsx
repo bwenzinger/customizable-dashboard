@@ -8,17 +8,23 @@ import {
 } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
+import { RichTextDashboardItem } from './RichTextDashboardItem';
 
 type DashboardCardProps = {
   item: DraggableGridItem;
   isDragging: boolean;
   isResizing: boolean;
+  canEdit: boolean;
+  onItemChanged?: (
+    itemId: string,
+    updates: Partial<Omit<DraggableGridItem, 'id'>>
+  ) => void;
 };
 
 export function ExampleDashboardCard(
   props: DashboardCardProps
 ): React.JSX.Element {
-  const { item, isDragging, isResizing } = props;
+  const { item, isDragging, isResizing, canEdit, onItemChanged } = props;
   const theme = useTheme();
   const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
   const itemWidth = item.width ?? 1;
@@ -74,8 +80,10 @@ export function ExampleDashboardCard(
             flexDirection: 'column',
             justifyContent: isTitleOnlyCard ? 'center' : 'space-between',
             flex: 1,
+            minHeight: 0,
             minWidth: 0,
             gap: isTitleOnlyCard ? 1 : 1.25,
+            overflow: 'hidden',
             p: `${isTitleOnlyCard ? 12 : 14}px !important`,
           }}
         >
@@ -86,7 +94,12 @@ export function ExampleDashboardCard(
           />
 
           {!isTitleOnlyCard ? (
-            <DashboardWidgetBody item={item} isSingleRowCard={isSingleRowCard} />
+            <DashboardWidgetBody
+              item={item}
+              canEdit={canEdit}
+              isSingleRowCard={isSingleRowCard}
+              onItemChanged={onItemChanged}
+            />
           ) : null}
         </CardContent>
       </Card>
@@ -230,12 +243,19 @@ function DashboardWidgetHeader({
 
 type DashboardWidgetBodyProps = {
   item: DraggableGridItem;
+  canEdit: boolean;
   isSingleRowCard: boolean;
+  onItemChanged?: (
+    itemId: string,
+    updates: Partial<Omit<DraggableGridItem, 'id'>>
+  ) => void;
 };
 
 function DashboardWidgetBody({
   item,
+  canEdit,
   isSingleRowCard,
+  onItemChanged,
 }: DashboardWidgetBodyProps) {
   if (item.kind === 'button') {
     return (
@@ -279,13 +299,20 @@ function DashboardWidgetBody({
       <Box
         sx={{
           borderLeft: '3px solid rgba(37, 99, 235, 0.45)',
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'column',
+          minHeight: 0,
           pl: 1.25,
           minWidth: 0,
         }}
       >
-        <WidgetSupportingText clamp={isSingleRowCard ? 1 : 5}>
-          {item.body}
-        </WidgetSupportingText>
+        <RichTextDashboardItem
+          item={item}
+          canEdit={canEdit}
+          isSingleRowCard={isSingleRowCard}
+          onItemChanged={onItemChanged}
+        />
       </Box>
     );
   }

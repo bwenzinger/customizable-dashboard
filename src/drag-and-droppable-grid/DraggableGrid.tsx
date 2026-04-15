@@ -421,6 +421,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isGridUndoSuppressedTarget(event.target)) {
+        return;
+      }
+
       if (!event.ctrlKey && !event.metaKey) {
         return;
       }
@@ -833,7 +837,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
   const handleDragStart =
     (itemId: string) => (event: ReactDragEvent<HTMLDivElement>) => {
-      if (!canEdit || resizeState || gridResizeState || isResizingRef.current) {
+      if (
+        isNoDragTarget(event.target) ||
+        !canEdit ||
+        resizeState ||
+        gridResizeState ||
+        isResizingRef.current
+      ) {
         event.preventDefault();
         return;
       }
@@ -1323,5 +1333,24 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         ) : null}
       </Box>
     </Box>
+  );
+}
+
+function isNoDragTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('[data-draggable-grid-no-drag="true"]') !== null
+  );
+}
+
+function isGridUndoSuppressedTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.closest(
+      'input, textarea, select, [contenteditable="true"], [data-draggable-grid-no-undo="true"]'
+    ) !== null
   );
 }
