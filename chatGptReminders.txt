@@ -49,6 +49,7 @@ Resize/grid preferences:
 - The overall grid should support a resizable number of rows with visible empty space.
 - A bottom handle for increasing/decreasing total grid rows is desired.
 - Empty rows/space should be preserved as part of the layout model.
+- Debug gridlines should be a grid item spanning the actual card grid tracks so browser layout accounts for padding, row height, and gap instead of relying on manual overlay offsets or percentage approximations.
 
 Undo/history preferences:
 

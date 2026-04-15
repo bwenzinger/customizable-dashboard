@@ -1230,7 +1230,6 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
             rowCount={resolvedRowCount}
             rowHeight={rowHeight}
             gap={gap}
-            containerPadding={containerPadding}
           />
         ) : null}
 

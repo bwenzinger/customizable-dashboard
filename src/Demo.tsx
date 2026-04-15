@@ -381,7 +381,7 @@ function App() {
         enableOptimize={true}
         columns={10}
         gap={16}
-        showGridlines={true}
+        showGridlines={false}
         renderItem={(
           item: DraggableGridItem,
           _index: number,

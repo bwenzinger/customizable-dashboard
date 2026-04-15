@@ -7,7 +7,6 @@ type DebugGridOverlayProps = {
   rowCount: number;
   rowHeight: number;
   gap: number;
-  containerPadding: number;
 };
 
 const orderedBreakpoints: DraggableGridBreakpoint[] = [
@@ -27,11 +26,9 @@ export function DebugGridOverlay(
     rowCount,
     rowHeight,
     gap,
-    containerPadding,
   } = props;
-  const gridHeight = rowCount * rowHeight + Math.max(0, rowCount - 1) * gap;
 
-  if (numColumns < 1 || rowCount < 1 || gridHeight <= 0) {
+  if (numColumns < 1 || rowCount < 1 || rowHeight <= 0) {
     return null;
   }
 
@@ -39,51 +36,29 @@ export function DebugGridOverlay(
     <Box
       aria-hidden
       sx={{
+        alignSelf: 'stretch',
+        display: 'grid',
+        gap: `${gap}px`,
+        gridColumn: '1 / -1',
+        gridRow: `1 / span ${rowCount}`,
+        gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${rowCount}, ${rowHeight}px)`,
+        justifySelf: 'stretch',
+        minWidth: 0,
         pointerEvents: 'none',
-        position: 'absolute',
-        top: `${containerPadding}px`,
-        right: `${containerPadding}px`,
-        left: `${containerPadding}px`,
-        height: `${gridHeight}px`,
+        position: 'relative',
         zIndex: 2,
       }}
     >
-      <Box
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          border: '1px dashed rgba(32, 78, 54, 0.7)',
-          background:
-            'linear-gradient(to right, rgba(32, 78, 54, 0.08), rgba(32, 78, 54, 0.08))',
-          backgroundSize: `${100 / numColumns}% 100%`,
-          backgroundRepeat: 'repeat',
-        }}
-      />
-
-      {Array.from({ length: numColumns - 1 }, (_, index) => (
+      {Array.from({ length: numColumns * rowCount }, (_, index) => (
         <Box
-          key={`column-${index + 1}`}
+          key={`grid-cell-${index}`}
           sx={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: `${((index + 1) / numColumns) * 100}%`,
-            width: '1px',
-            bgcolor: 'rgba(32, 78, 54, 0.45)',
-          }}
-        />
-      ))}
-
-      {Array.from({ length: Math.max(0, rowCount - 1) }, (_, index) => (
-        <Box
-          key={`row-${index + 1}`}
-          sx={{
-            position: 'absolute',
-            right: 0,
-            left: 0,
-            top: `${(index + 1) * rowHeight + index * gap}px`,
-            height: '1px',
-            bgcolor: 'rgba(32, 78, 54, 0.45)',
+            minWidth: 0,
+            minHeight: 0,
+            border: '1px dashed rgba(32, 78, 54, 0.55)',
+            backgroundColor: 'rgba(32, 78, 54, 0.06)',
+            boxSizing: 'border-box',
           }}
         />
       ))}
