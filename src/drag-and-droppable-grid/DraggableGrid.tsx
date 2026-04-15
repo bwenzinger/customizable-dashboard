@@ -15,6 +15,7 @@ import { DebugGridOverlay } from './DebugGridOverlay';
 import {
   clampItemHeight,
   clampItemWidth,
+  getItemWidth,
   getGridSlotFromPointer,
   getItemHeight,
   getRequiredRowCount,
@@ -150,15 +151,15 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         item,
         index,
         clampedWidth: clampItemWidth({
-          width: item.width,
+          width: getItemWidth(item),
           minWidth: item.minWidth,
           maxWidth: item.maxWidth,
           columns: numColumns,
         }),
         clampedHeight: clampItemHeight({
           height: getItemHeight(item),
-          minHeight: item.minHeight ?? 1,
-          maxHeight: item.maxHeight ?? getItemHeight(item),
+          minHeight: item.minHeight,
+          maxHeight: item.maxHeight,
         }),
       })),
     [numColumns, renderedLayout]
@@ -205,7 +206,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       return;
     }
 
-    const nextKey = `${nextSlot.row}:${nextSlot.column}:${draggedItem.width}:${getItemHeight(draggedItem)}`;
+    const draggedItemWidth = getItemWidth(draggedItem);
+    const nextKey = `${nextSlot.row}:${nextSlot.column}:${draggedItemWidth}:${getItemHeight(draggedItem)}`;
 
     if (dragPreviewIndicatorKeyRef.current === nextKey) {
       return;
@@ -213,7 +215,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
     dragPreviewIndicatorKeyRef.current = nextKey;
     indicatorElement.style.display = 'block';
-    indicatorElement.style.gridColumn = `${nextSlot.column} / span ${draggedItem.width}`;
+    indicatorElement.style.gridColumn = `${nextSlot.column} / span ${draggedItemWidth}`;
     indicatorElement.style.gridRow = `${nextSlot.row} / span ${getItemHeight(draggedItem)}`;
   }
 
@@ -577,7 +579,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         padding: containerPadding,
         parentCoords: resizeState.parentCoords,
         clientX: event.clientX,
-        currentWidth: currentItem.width,
+        currentWidth: getItemWidth(currentItem),
         resizeDirection: nextResizePointerState.widthDirection,
         stepThreshold: resizeStepThreshold,
       });
@@ -599,12 +601,12 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       });
       const clampedHeight = clampItemHeight({
         height: newHeight,
-        minHeight: activeItem.minHeight ?? 1,
-        maxHeight: activeItem.maxHeight ?? getItemHeight(activeItem),
+        minHeight: activeItem.minHeight,
+        maxHeight: activeItem.maxHeight,
       });
 
       if (
-        (clampedWidth === currentItem.width &&
+        (clampedWidth === getItemWidth(currentItem) &&
           clampedHeight === getItemHeight(currentItem)) ||
         (handlingResizingRef.current?.id === resizeState.itemId &&
           handlingResizingRef.current?.width === clampedWidth &&
@@ -787,7 +789,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         rowHeight,
         gap,
         padding: containerPadding,
-        itemWidth: draggingItem.width,
+        itemWidth: getItemWidth(draggingItem),
         itemHeight: getItemHeight(draggingItem),
       });
 
@@ -1188,11 +1190,11 @@ function doGridItemsOverlap(
   const firstRowStart = first.row ?? 1;
   const firstColumnStart = first.column ?? 1;
   const firstRowEnd = firstRowStart + getItemHeight(first) - 1;
-  const firstColumnEnd = firstColumnStart + first.width - 1;
+  const firstColumnEnd = firstColumnStart + getItemWidth(first) - 1;
   const secondRowStart = second.row ?? 1;
   const secondColumnStart = second.column ?? 1;
   const secondRowEnd = secondRowStart + getItemHeight(second) - 1;
-  const secondColumnEnd = secondColumnStart + second.width - 1;
+  const secondColumnEnd = secondColumnStart + getItemWidth(second) - 1;
 
   return !(
     firstRowEnd < secondRowStart ||

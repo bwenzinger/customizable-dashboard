@@ -29,6 +29,9 @@ Draggable grid behavior preferences:
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
 - For standard cards, prefer a simple title plus compact max-size and current-size chips over dense metadata blocks.
+- In 1x1 cards, prioritize keeping the title visible; hide chips or other secondary metadata before truncating the name.
+- In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
+- Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
 
 Resize/grid preferences:
 

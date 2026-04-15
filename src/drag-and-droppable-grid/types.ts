@@ -38,9 +38,9 @@ export type DraggableGridItem = {
   id: string;
   title?: string;
   imageSrc?: string;
-  width: number;
-  minWidth: number;
-  maxWidth: number;
+  width?: number;
+  minWidth?: number;
+  maxWidth?: number;
   height?: number;
   minHeight?: number;
   maxHeight?: number;

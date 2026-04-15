@@ -81,15 +81,24 @@ export function clamp(
 
 export function clampItemWidth(args: {
   width: number;
-  minWidth: number;
-  maxWidth: number;
+  minWidth?: number;
+  maxWidth?: number;
   columns: number;
 }): number {
   const { width, minWidth, maxWidth, columns } = args;
-  const maxAllowedWidth = Math.max(1, Math.min(maxWidth, columns));
-  const minAllowedWidth = Math.min(Math.max(1, minWidth), maxAllowedWidth);
+  const maxAllowedWidth = Math.max(1, Math.min(maxWidth ?? columns, columns));
+  const minAllowedWidth = Math.min(
+    Math.max(1, minWidth ?? 1),
+    maxAllowedWidth
+  );
 
-  return clamp(width, minAllowedWidth, maxAllowedWidth);
+  return clamp(Math.max(1, width), minAllowedWidth, maxAllowedWidth);
+}
+
+export function getItemWidth(
+  item?: Pick<DraggableGridItem, 'width'>
+): number {
+  return Math.max(1, item?.width ?? 1);
 }
 
 export function getItemHeight(
@@ -100,14 +109,18 @@ export function getItemHeight(
 
 export function clampItemHeight(args: {
   height: number;
-  minHeight: number;
-  maxHeight: number;
+  minHeight?: number;
+  maxHeight?: number;
 }): number {
   const { height, minHeight, maxHeight } = args;
-  const maxAllowedHeight = Math.max(1, maxHeight);
-  const minAllowedHeight = Math.min(Math.max(1, minHeight), maxAllowedHeight);
+  const maxAllowedHeight =
+    maxHeight === undefined ? Number.POSITIVE_INFINITY : Math.max(1, maxHeight);
+  const minAllowedHeight = Math.min(
+    Math.max(1, minHeight ?? 1),
+    maxAllowedHeight
+  );
 
-  return clamp(height, minAllowedHeight, maxAllowedHeight);
+  return clamp(Math.max(1, height), minAllowedHeight, maxAllowedHeight);
 }
 
 export function normalizeLayoutSpans(
@@ -115,19 +128,21 @@ export function normalizeLayoutSpans(
   columns: number
 ): DraggableGridItem[] {
   return layout.map((item) => {
+    const resolvedWidth = getItemWidth(item);
+    const resolvedHeight = getItemHeight(item);
     const normalizedWidth = clampItemWidth({
-      width: item.width,
+      width: resolvedWidth,
       minWidth: item.minWidth,
       maxWidth: item.maxWidth,
       columns,
     });
     const normalizedHeight = clampItemHeight({
-      height: getItemHeight(item),
-      minHeight: item.minHeight ?? 1,
-      maxHeight: item.maxHeight ?? getItemHeight(item),
+      height: resolvedHeight,
+      minHeight: item.minHeight,
+      maxHeight: item.maxHeight,
     });
     const hasWidthChanged = normalizedWidth !== item.width;
-    const hasHeightChanged = normalizedHeight !== getItemHeight(item);
+    const hasHeightChanged = normalizedHeight !== item.height;
 
     if (!hasWidthChanged && !hasHeightChanged) {
       return item;
@@ -148,16 +163,17 @@ export function normalizeLayoutPositions(
   const occupiedCells = new Set<string>();
 
   return normalizeLayoutSpans(layout, columns).map((item) => {
+    const itemWidth = getItemWidth(item);
     const desiredRow = Math.max(1, item.row ?? 1);
-    const maxColumnStart = Math.max(1, columns - item.width + 1);
+    const maxColumnStart = Math.max(1, columns - itemWidth + 1);
     const desiredColumn = clamp(item.column ?? 1, 1, maxColumnStart);
     const itemHeight = getItemHeight(item);
     // Keep each item as close as possible to its requested slot, but push it
     // forward if that slot is already occupied by an earlier item.
-    const placement = findNextAvailableSlot({
+      const placement = findNextAvailableSlot({
       occupiedCells,
       columns,
-      width: item.width,
+      width: itemWidth,
       height: itemHeight,
       startRow: desiredRow,
       startColumn: desiredColumn,
@@ -166,7 +182,7 @@ export function normalizeLayoutPositions(
       occupiedCells,
       row: placement.row,
       column: placement.column,
-      width: item.width,
+      width: itemWidth,
       height: itemHeight,
     });
 

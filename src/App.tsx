@@ -10,11 +10,11 @@ const initialLayout: DraggableGridItem[] = [
     id: 'a',
     title: 'Overview',
     width: 1,
-    minWidth: 3,
-    maxWidth: 7,
+    // minWidth: 3,
+    // maxWidth: 7,
     height: 1,
-    minHeight: 1,
-    maxHeight: 4,
+    // minHeight: 1,
+    // maxHeight: 4,
   },
   {
     id: 'b',
@@ -100,10 +100,13 @@ function App() {
           isResizing: boolean
         ) => {
           const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
+          const itemWidth = item.width ?? 1;
           const itemHeight = item.height ?? 1;
-          const maxHeight = item.maxHeight ?? itemHeight;
-          const isCompactCard = item.width === 1 && itemHeight === 1;
-          const isNarrowCard = item.width === 1;
+          const isSingleRowCard = itemHeight === 1;
+          const isTitleOnlyCard = isSingleRowCard && itemWidth <= 2;
+          const shouldShowCurrentChip = !isTitleOnlyCard;
+          const shouldShowMaxChip = !isSingleRowCard;
+          const useCompactChipLayout = isSingleRowCard || itemWidth === 1;
 
           if (item.imageSrc) {
             return (
@@ -148,17 +151,17 @@ function App() {
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: isCompactCard ? 'center' : 'space-between',
+                  justifyContent: isTitleOnlyCard ? 'center' : 'space-between',
                   flex: 1,
                   minWidth: 0,
-                  gap: isCompactCard ? 1 : 1.5,
-                  p: `${isCompactCard ? 12 : 14}px !important`,
+                  gap: isTitleOnlyCard ? 1 : 1.5,
+                  p: `${isTitleOnlyCard ? 12 : 14}px !important`,
                 }}
               >
                 <Typography
                   sx={{
                     color: 'text.primary',
-                    fontSize: isCompactCard
+                    fontSize: isTitleOnlyCard
                       ? '0.92rem'
                       : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)',
                     fontWeight: 700,
@@ -167,33 +170,39 @@ function App() {
                     overflowWrap: 'anywhere',
                     display: '-webkit-box',
                     WebkitBoxOrient: 'vertical',
-                    WebkitLineClamp: isCompactCard ? 2 : 3,
+                    WebkitLineClamp: isTitleOnlyCard ? 4 : isSingleRowCard ? 2 : 3,
                     overflow: 'hidden',
+                    textAlign: isTitleOnlyCard ? 'center' : 'left',
                   }}
                 >
                   {item.title}
                 </Typography>
 
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 0.75,
-                    alignItems: 'flex-start',
-                    mt: isCompactCard ? 'auto' : 0,
-                  }}
-                >
-                  <DashboardCardChip
-                    label="Max"
-                    value={`${item.maxWidth} x ${maxHeight}`}
-                    compact={isCompactCard || isNarrowCard}
-                  />
-                  <DashboardCardChip
-                    label="Current"
-                    value={`${item.width} x ${itemHeight}`}
-                    compact={isCompactCard || isNarrowCard}
-                  />
-                </Box>
+                {shouldShowCurrentChip || shouldShowMaxChip ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.75,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    {shouldShowMaxChip ? (
+                      <DashboardCardChip
+                        label="Max"
+                        value={`${formatCardSizeLimit(item.maxWidth)} x ${formatCardSizeLimit(item.maxHeight)}`}
+                        compact={useCompactChipLayout}
+                      />
+                    ) : null}
+                    {shouldShowCurrentChip ? (
+                      <DashboardCardChip
+                        label="Current"
+                        value={`${itemWidth} x ${itemHeight}`}
+                        compact={useCompactChipLayout}
+                      />
+                    ) : null}
+                  </Box>
+                ) : null}
               </CardContent>
             </Card>
           );
@@ -260,6 +269,10 @@ function DashboardCardChip({
       </Typography>
     </Box>
   );
+}
+
+function formatCardSizeLimit(limit?: number) {
+  return limit === undefined ? '∞' : `${Math.max(1, limit)}`;
 }
 
 function getInteractiveCardSx(theme: Theme, isResizing: boolean) {
