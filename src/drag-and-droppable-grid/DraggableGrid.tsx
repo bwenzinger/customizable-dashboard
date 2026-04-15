@@ -27,6 +27,7 @@ import { getNextResizePointerState } from './draggableGridResizeUtils';
 import {
   clampItemHeight,
   clampItemWidth,
+  compactLayoutPositions,
   getItemWidth,
   getGridSlotFromPointer,
   getItemHeight,
@@ -35,9 +36,11 @@ import {
   getResizedRowSpan,
   moveItemToGridSlot,
   normalizeLayoutPositions,
+  optimizeLayoutPositions,
   resizeItemInLayout,
 } from './gridMath';
 import type {
+  DraggableGridLayoutCommitReason,
   DraggableGridItem,
   DraggableGridProps,
   GridResizeState,
@@ -63,6 +66,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     animationMs = 320,
     resizeHandleWidth = 12,
     enableUndo = false,
+    enableCollapse = false,
+    enableOptimize = false,
   } = props;
   const containerPadding = 6;
   const gridResizeHandleHeight = 18;
@@ -185,6 +190,14 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     () => getRequiredRowCount(previewLayout),
     [previewLayout]
   );
+  const compactedCommittedLayout = useMemo(
+    () => compactLayoutPositions(normalizedCommittedLayout, numColumns),
+    [normalizedCommittedLayout, numColumns]
+  );
+  const optimizedCommittedLayout = useMemo(
+    () => optimizeLayoutPositions(normalizedCommittedLayout, numColumns),
+    [normalizedCommittedLayout, numColumns]
+  );
   // The grid can be manually expanded, but it should never shrink below the
   // rows required to display the current item placements.
   const resolvedRowCount = Math.max(rowCount, minRowCount, requiredRowCount);
@@ -255,7 +268,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     (
       nextLayout: DraggableGridItem[],
       previousLayout: DraggableGridItem[],
-      reason: 'drop' | 'itemResize'
+      reason: DraggableGridLayoutCommitReason
     ) => {
       const normalizedNextLayout = normalizeLayoutPositions(
         nextLayout,
@@ -294,6 +307,47 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     setCanUndo(layoutHistoryRef.current.length > 0);
     requestLayoutChange(previousLayout, 'undo');
   }, [requestLayoutChange]);
+
+  const canRunLayoutAction =
+    draggingId === null &&
+    resizeState === null &&
+    gridResizeState === null;
+  const canCollapse =
+    canRunLayoutAction &&
+    !haveSameGridLayout(normalizedCommittedLayout, compactedCommittedLayout);
+  const canOptimize =
+    canRunLayoutAction &&
+    !haveSameGridLayout(normalizedCommittedLayout, optimizedCommittedLayout);
+
+  const commitLayoutAction = useCallback(
+    (nextLayout: DraggableGridItem[], reason: 'collapse' | 'optimize') => {
+      resetDragPreview();
+      requestLayoutChange(nextLayout, 'internalCommit');
+      recordCommittedLayout(nextLayout, normalizedCommittedLayout, reason);
+    },
+    [
+      normalizedCommittedLayout,
+      recordCommittedLayout,
+      requestLayoutChange,
+      resetDragPreview,
+    ]
+  );
+
+  const handleCollapse = useCallback(() => {
+    if (!canCollapse) {
+      return;
+    }
+
+    commitLayoutAction(compactedCommittedLayout, 'collapse');
+  }, [canCollapse, compactedCommittedLayout, commitLayoutAction]);
+
+  const handleOptimize = useCallback(() => {
+    if (!canOptimize) {
+      return;
+    }
+
+    commitLayoutAction(optimizedCommittedLayout, 'optimize');
+  }, [canOptimize, commitLayoutAction, optimizedCommittedLayout]);
 
   useEffect(() => {
     // Normalize any externally supplied layout so widths and slot positions stay
@@ -1047,29 +1101,69 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         overflowY: 'auto',
       }}
     >
-      {enableUndo ? (
+      {enableUndo || enableCollapse || enableOptimize ? (
         <Box
           sx={{
             position: 'absolute',
             top: 16,
             right: 16,
             zIndex: 10,
+            display: 'flex',
+            gap: 1,
           }}
         >
-          <Button
-            variant="contained"
-            color="inherit"
-            onClick={handleUndo}
-            disabled={!canUndo}
-            sx={{
-              borderRadius: 999,
-              px: 2,
-              boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
-              backgroundColor: '#ffffff',
-            }}
-          >
-            Undo
-          </Button>
+          {enableOptimize ? (
+            <Button
+              variant="contained"
+              color="inherit"
+              onClick={handleOptimize}
+              disabled={!canOptimize}
+              title="Reorder cards to pack available space efficiently"
+              sx={{
+                borderRadius: 999,
+                px: 2,
+                boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+                backgroundColor: '#ffffff',
+              }}
+            >
+              Optimize
+            </Button>
+          ) : null}
+
+          {enableCollapse ? (
+            <Button
+              variant="contained"
+              color="inherit"
+              onClick={handleCollapse}
+              disabled={!canCollapse}
+              title="Compact cards while preserving visual order"
+              sx={{
+                borderRadius: 999,
+                px: 2,
+                boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+                backgroundColor: '#ffffff',
+              }}
+            >
+              Collapse
+            </Button>
+          ) : null}
+
+          {enableUndo ? (
+            <Button
+              variant="contained"
+              color="inherit"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              sx={{
+                borderRadius: 999,
+                px: 2,
+                boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+                backgroundColor: '#ffffff',
+              }}
+            >
+              Undo
+            </Button>
+          ) : null}
         </Box>
       ) : null}
 

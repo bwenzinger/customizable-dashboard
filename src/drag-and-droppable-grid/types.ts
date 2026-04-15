@@ -6,6 +6,12 @@ export type DraggableGridResponsiveColumns = Partial<
   Record<DraggableGridBreakpoint, number>
 >;
 
+export type DraggableGridLayoutCommitReason =
+  | 'drop'
+  | 'itemResize'
+  | 'collapse'
+  | 'optimize';
+
 export type DraggableGridProps = {
   ref: RefObject<HTMLDivElement | null>;
   layout: DraggableGridItem[];
@@ -13,7 +19,7 @@ export type DraggableGridProps = {
   onLayoutCommitted?: (
     nextLayout: DraggableGridItem[],
     previousLayout: DraggableGridItem[],
-    reason: 'drop' | 'itemResize'
+    reason: DraggableGridLayoutCommitReason
   ) => void;
   renderItem: (
     item: DraggableGridItem,
@@ -32,6 +38,8 @@ export type DraggableGridProps = {
   animationMs?: number;
   resizeHandleWidth?: number;
   enableUndo?: boolean;
+  enableCollapse?: boolean;
+  enableOptimize?: boolean;
 };
 
 export type DraggableGridItem = {

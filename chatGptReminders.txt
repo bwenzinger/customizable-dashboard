@@ -51,11 +51,15 @@ Undo/history preferences:
 
 - Support Ctrl+Z / Cmd+Z undo.
 - Also provide an Undo button in the UI.
+- Also provide Collapse and Optimize buttons beside Undo for layout compaction.
 - Undo history should only record finalized interactions with a real diff.
 - Drag preview/hover states should not be added to undo history.
 - Drop commits should be added to history.
 - Drag-handle resize commits with a real diff should also be added to history.
 - Finalized external layout changes, like adding a card via UI controls, should also be undoable.
+- Collapse/compact should count as a finalized undoable commit.
+- Collapse should determine item order by scanning rows left-to-right, then top-to-bottom, commit that same order, and place each item as high as possible before moving left. Later items must respect the full footprint of earlier ordered items: while they are in the same vertical band, they should stay to the right rather than jumping left/up around them.
+- Optimize should count as a finalized undoable commit and may reorder cards to pack larger items first for a denser layout.
 
 General collaboration preferences:
 

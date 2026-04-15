@@ -170,7 +170,7 @@ export function normalizeLayoutPositions(
     const itemHeight = getItemHeight(item);
     // Keep each item as close as possible to its requested slot, but push it
     // forward if that slot is already occupied by an earlier item.
-      const placement = findNextAvailableSlot({
+    const placement = findNextAvailableSlot({
       occupiedCells,
       columns,
       width: itemWidth,
@@ -196,6 +196,63 @@ export function normalizeLayoutPositions(
       column: placement.column,
     };
   });
+}
+
+export function compactLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const normalizedLayout = normalizeLayoutSpans(layout, columns);
+  // Collapse first captures the current row-by-row reading order, then packs
+  // that exact order. Later items are not allowed to backfill earlier holes.
+  return packLayoutFromOrderStrictly(
+    getLayoutInVisualReadingOrder(normalizedLayout),
+    columns
+  );
+}
+
+export function optimizeLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const visuallySortedLayout = getLayoutInVisualReadingOrder(
+    normalizeLayoutSpans(layout, columns)
+  );
+  // First-fit packing works best when larger items claim space before the small
+  // filler cards, so this mode intentionally allows visual order to change.
+  const optimizedOrder = visuallySortedLayout
+    .map((item, index) => ({
+      item,
+      index,
+    }))
+    .sort((first, second) => {
+      const firstArea = getItemWidth(first.item) * getItemHeight(first.item);
+      const secondArea = getItemWidth(second.item) * getItemHeight(second.item);
+      const areaDifference = secondArea - firstArea;
+
+      if (areaDifference !== 0) {
+        return areaDifference;
+      }
+
+      const widthDifference =
+        getItemWidth(second.item) - getItemWidth(first.item);
+
+      if (widthDifference !== 0) {
+        return widthDifference;
+      }
+
+      const heightDifference =
+        getItemHeight(second.item) - getItemHeight(first.item);
+
+      if (heightDifference !== 0) {
+        return heightDifference;
+      }
+
+      return first.index - second.index;
+    })
+    .map(({ item }) => item);
+
+  return packLayoutFromOrder(optimizedOrder, columns);
 }
 
 export function moveItemToGridSlot(args: {
@@ -434,6 +491,177 @@ function markOccupiedCells(args: {
 
 function getOccupiedCellKey(row: number, column: number): string {
   return `${row}:${column}`;
+}
+
+function getLayoutInVisualReadingOrder(
+  layout: DraggableGridItem[]
+): DraggableGridItem[] {
+  return layout
+    .map((item, index) => ({
+      item,
+      index,
+    }))
+    .sort((first, second) => {
+      const rowDifference = (first.item.row ?? 1) - (second.item.row ?? 1);
+
+      if (rowDifference !== 0) {
+        return rowDifference;
+      }
+
+      const columnDifference =
+        (first.item.column ?? 1) - (second.item.column ?? 1);
+
+      if (columnDifference !== 0) {
+        return columnDifference;
+      }
+
+      return first.index - second.index;
+    })
+    .map(({ item }) => item);
+}
+
+function packLayoutFromOrder(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const compactedSeedLayout = layout.map((item) => ({
+    ...item,
+    row: 1,
+    column: 1,
+  }));
+
+  return normalizeLayoutPositions(compactedSeedLayout, columns);
+}
+
+function packLayoutFromOrderStrictly(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const occupiedCells = new Set<string>();
+  const priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }> = [];
+
+  return normalizeLayoutSpans(layout, columns).map((item) => {
+    const itemWidth = getItemWidth(item);
+    const itemHeight = getItemHeight(item);
+    const placement = findNextAvailableSlotAfter({
+      occupiedCells,
+      columns,
+      width: itemWidth,
+      height: itemHeight,
+      priorPlacements,
+    });
+
+    markOccupiedCells({
+      occupiedCells,
+      row: placement.row,
+      column: placement.column,
+      width: itemWidth,
+      height: itemHeight,
+    });
+
+    priorPlacements.push({
+      ...placement,
+      width: itemWidth,
+      height: itemHeight,
+    });
+
+    if (item.row === placement.row && item.column === placement.column) {
+      return item;
+    }
+
+    return {
+      ...item,
+      row: placement.row,
+      column: placement.column,
+    };
+  });
+}
+
+function findNextAvailableSlotAfter(args: {
+  occupiedCells: Set<string>;
+  columns: number;
+  width: number;
+  height: number;
+  priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }>;
+}): { row: number; column: number } {
+  const {
+    occupiedCells,
+    columns,
+    width,
+    height,
+    priorPlacements,
+  } = args;
+  const maxColumnStart = Math.max(1, columns - width + 1);
+  const previousPlacement = priorPlacements.at(-1);
+  const startRow = previousPlacement?.row ?? 1;
+  const startColumn = previousPlacement ? previousPlacement.column + 1 : 1;
+
+  // Search upward first by scanning rows before columns, but never let the next
+  // card visually pass earlier ordered cards that still occupy the same band.
+  for (let row = startRow; row < startRow + 1000; row += 1) {
+    const firstColumn = row === startRow ? startColumn : 1;
+
+    for (let column = firstColumn; column <= maxColumnStart; column += 1) {
+      if (
+        canPlaceItem({
+          occupiedCells,
+          row,
+          column,
+          width,
+          height,
+        })
+        && doesSlotRespectPriorOrder({
+          row,
+          column,
+          priorPlacements,
+        })
+      ) {
+        return {
+          row,
+          column,
+        };
+      }
+    }
+  }
+
+  return {
+    row: startRow + 1000,
+    column: 1,
+  };
+}
+
+function doesSlotRespectPriorOrder(args: {
+  row: number;
+  column: number;
+  priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }>;
+}): boolean {
+  const { row, column, priorPlacements } = args;
+
+  return priorPlacements.every((placement) => {
+    const placementBottom = placement.row + placement.height - 1;
+    const placementRight = placement.column + placement.width - 1;
+
+    if (row > placementBottom) {
+      return true;
+    }
+
+    return column > placementRight;
+  });
 }
 
 function normalizeLayoutWithPriority(args: {

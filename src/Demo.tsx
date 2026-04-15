@@ -115,6 +115,8 @@ function App() {
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
         enableUndo={true}
+        enableCollapse={true}
+        enableOptimize={true}
         columns={10}
         gap={16}
         // showGridlines={true}
