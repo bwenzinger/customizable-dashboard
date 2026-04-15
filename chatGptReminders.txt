@@ -38,6 +38,7 @@ Draggable grid behavior preferences:
 - The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
 - Rich text dashboard items should use an actual editable rich text surface in edit mode, save their HTML output to the item body, and render the saved output in viewing mode.
 - Rich text edit/view mode should preserve the same sanitized output, including safe inline styles for color, highlight, font size, font family, alignment, line height, and text decorations.
+- Rich text color/highlight controls should preserve editor selection; prefer toolbar swatches/custom prompts over native color inputs that steal focus before formatting runs.
 - Text editing surfaces inside cards should opt out of grid drag gestures and grid-level Ctrl/Cmd+Z so typing, selecting, formatting, and native editor undo feel normal.
 
 Resize/grid preferences:

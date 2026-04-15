@@ -367,18 +367,28 @@ export function RichTextDashboardItem(
     [commitEditorHtml, restoreEditorSelection]
   );
 
-  const handleTextColorChanged = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      runEditorCommand('foreColor', event.currentTarget.value, true);
+  const handleTextColorSelected = useCallback(
+    (color: string) => {
+      runEditorCommand('foreColor', color, true);
     },
     [runEditorCommand]
   );
 
-  const handleHighlightColorChanged = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      runEditorCommand('hiliteColor', event.currentTarget.value, true);
+  const handleHighlightColorSelected = useCallback(
+    (color: string) => {
+      restoreEditorSelection();
+      document.execCommand('styleWithCSS', false, 'true');
+
+      // Browser support differs here: Chromium supports hiliteColor, while
+      // older/contenteditable paths may only respond to backColor.
+      if (!document.execCommand('hiliteColor', false, color)) {
+        document.execCommand('backColor', false, color);
+      }
+
+      rememberEditorSelection();
+      commitEditorHtml();
     },
-    [runEditorCommand]
+    [commitEditorHtml, rememberEditorSelection, restoreEditorSelection]
   );
 
   const handleLinkClicked = useCallback(() => {
@@ -528,15 +538,15 @@ export function RichTextDashboardItem(
         <ColorToolbarControl
           ariaLabel="Text color"
           colors={textColorOptions}
-          onChange={handleTextColorChanged}
-          onMouseDown={handleToolbarControlMouseDown}
+          onMouseDown={handleToolbarButtonMouseDown}
+          onSelectColor={handleTextColorSelected}
           title="Text color"
         />
         <ColorToolbarControl
           ariaLabel="Highlight color"
           colors={highlightColorOptions}
-          onChange={handleHighlightColorChanged}
-          onMouseDown={handleToolbarControlMouseDown}
+          onMouseDown={handleToolbarButtonMouseDown}
+          onSelectColor={handleHighlightColorSelected}
           title="Highlight"
         />
         <ToolbarButton
@@ -727,20 +737,36 @@ function ToolbarButton({
 type ColorToolbarControlProps = {
   ariaLabel: string;
   colors: string[];
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onMouseDown: (event: ReactMouseEvent<HTMLInputElement>) => void;
+  onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onSelectColor: (color: string) => void;
   title: string;
 };
 
 function ColorToolbarControl({
   ariaLabel,
   colors,
-  onChange,
   onMouseDown,
+  onSelectColor,
   title,
 }: ColorToolbarControlProps) {
+  const handleCustomColorClick = useCallback(() => {
+    const color = window.prompt(`${title} hex color`, colors[0]);
+
+    if (!color) {
+      return;
+    }
+
+    if (!isSafeColorValue(color)) {
+      return;
+    }
+
+    onSelectColor(color);
+  }, [colors, onSelectColor, title]);
+
   return (
     <Box
+      aria-label={ariaLabel}
+      role="group"
       title={title}
       sx={{
         alignItems: 'center',
@@ -749,7 +775,7 @@ function ColorToolbarControl({
         display: 'inline-flex',
         gap: 0.5,
         height: 26,
-        px: 0.5,
+        px: 0.6,
       }}
     >
       <Typography
@@ -764,22 +790,49 @@ function ColorToolbarControl({
       >
         {title}
       </Typography>
+      {colors.map((color) => (
+        <Box
+          key={color}
+          component="button"
+          aria-label={`${title} ${color}`}
+          type="button"
+          onClick={() => {
+            onSelectColor(color);
+          }}
+          onMouseDown={onMouseDown}
+          sx={{
+            width: 16,
+            height: 16,
+            border: '1px solid rgba(15, 23, 42, 0.22)',
+            borderRadius: 999,
+            bgcolor: color,
+            cursor: 'pointer',
+            p: 0,
+          }}
+        />
+      ))}
       <Box
-        component="input"
-        aria-label={ariaLabel}
-        defaultValue={colors[0]}
-        type="color"
-        onChange={onChange}
+        component="button"
+        aria-label={`Custom ${title.toLowerCase()}`}
+        type="button"
+        onClick={handleCustomColorClick}
         onMouseDown={onMouseDown}
         sx={{
-          width: 24,
-          height: 20,
-          p: 0,
-          border: 0,
-          bgcolor: 'transparent',
+          width: 20,
+          height: 18,
+          border: '1px dashed rgba(67, 56, 202, 0.35)',
+          borderRadius: 1,
+          bgcolor: '#ffffff',
+          color: '#4338ca',
           cursor: 'pointer',
+          fontSize: '0.68rem',
+          fontWeight: 900,
+          lineHeight: '16px',
+          p: 0,
         }}
-      />
+      >
+        +
+      </Box>
     </Box>
   );
 }
