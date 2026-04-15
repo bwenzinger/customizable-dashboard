@@ -12,6 +12,13 @@ export type DraggableGridLayoutCommitReason =
   | 'collapse'
   | 'optimize';
 
+export type DraggableGridItemKind =
+  | 'card'
+  | 'button'
+  | 'richText'
+  | 'image'
+  | 'metric';
+
 export type DraggableGridProps = {
   ref: RefObject<HTMLDivElement | null>;
   layout: DraggableGridItem[];
@@ -44,7 +51,14 @@ export type DraggableGridProps = {
 
 export type DraggableGridItem = {
   id: string;
+  kind?: DraggableGridItemKind;
   title?: string;
+  description?: string;
+  body?: string;
+  actionLabel?: string;
+  metricLabel?: string;
+  metricValue?: string;
+  metricTrend?: string;
   imageSrc?: string;
   width?: number;
   minWidth?: number;

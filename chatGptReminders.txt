@@ -32,7 +32,7 @@ Draggable grid behavior preferences:
 - In 1x1 cards, prioritize keeping the title visible; hide chips or other secondary metadata before truncating the name.
 - In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
 - Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
-- The demo UI should support adding a new card via button click; for now, new cards should appear as 1x1 items appended at the bottom of the grid.
+- The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
 
 Resize/grid preferences:
 
