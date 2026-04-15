@@ -13,6 +13,7 @@ import {
   Menu,
   MenuItem,
   Switch,
+  Typography,
 } from '@mui/material';
 import { ExampleDashboardCard } from './ExampleDashboardCard';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
@@ -90,6 +91,8 @@ const addItemOptions: AddItemOption[] = [
   },
 ];
 
+const demoLayoutStorageKey = 'customizable-dashboard.demo.layout';
+
 const initialLayout: DraggableGridItem[] = [
   {
     id: 'a',
@@ -140,9 +143,12 @@ const initialLayout: DraggableGridItem[] = [
 ];
 
 function App() {
-  const [layout, setLayout] = useState<DraggableGridItem[]>(initialLayout);
+  const [layout, setLayout] = useState<DraggableGridItem[]>(
+    getSavedDemoLayout
+  );
   const [canEdit, setCanEdit] = useState(true);
   const [addMenuAnchor, setAddMenuAnchor] = useState<HTMLElement | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const isAddMenuOpen = Boolean(addMenuAnchor);
 
@@ -216,6 +222,15 @@ function App() {
     },
     [handleCloseAddMenu]
   );
+
+  const handleSaveLayout = useCallback(() => {
+    try {
+      localStorage.setItem(demoLayoutStorageKey, JSON.stringify(layout));
+      setSaveStatus(`Saved ${new Date().toLocaleTimeString()}`);
+    } catch {
+      setSaveStatus('Could not save layout');
+    }
+  }, [layout]);
 
   const handleAddItemOption = useCallback(
     (option: AddItemOption) => {
@@ -331,6 +346,36 @@ function App() {
         >
           Add Item
         </Button>
+        <Button
+          variant="contained"
+          color="inherit"
+          onClick={handleSaveLayout}
+          sx={{
+            borderRadius: 999,
+            px: 2,
+            boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
+            backgroundColor: '#ffffff',
+          }}
+        >
+          Save
+        </Button>
+        {saveStatus ? (
+          <Typography
+            aria-live="polite"
+            sx={{
+              borderRadius: 999,
+              bgcolor: 'rgba(255, 255, 255, 0.82)',
+              boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.08)',
+              color: 'text.secondary',
+              fontSize: '0.78rem',
+              fontWeight: 800,
+              px: 1.5,
+              py: 0.75,
+            }}
+          >
+            {saveStatus}
+          </Typography>
+        ) : null}
         <Menu
           id="add-dashboard-item-menu"
           anchorEl={addMenuAnchor}
@@ -420,6 +465,39 @@ function App() {
 }
 
 export default App;
+
+function getSavedDemoLayout(): DraggableGridItem[] {
+  try {
+    const savedLayout = localStorage.getItem(demoLayoutStorageKey);
+
+    if (!savedLayout) {
+      return initialLayout;
+    }
+
+    const parsedLayout = JSON.parse(savedLayout);
+
+    if (!isValidSavedDemoLayout(parsedLayout)) {
+      return initialLayout;
+    }
+
+    return parsedLayout;
+  } catch {
+    return initialLayout;
+  }
+}
+
+function isValidSavedDemoLayout(value: unknown): value is DraggableGridItem[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        'id' in item &&
+        typeof item.id === 'string'
+    )
+  );
+}
 
 function TemplateOptionIcon({ label }: { label: string }) {
   return (
