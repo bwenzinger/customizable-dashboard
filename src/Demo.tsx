@@ -701,19 +701,20 @@ function App() {
         sx={{
           flex: 1,
           minHeight: 0,
-          px: { xs: 2, md: 3 },
-          py: { xs: 2, md: 3 },
+          // px: { xs: 2, md: 3 },
+          // py: { xs: 2, md: 3 },
         }}
       >
         <Box
           sx={{
             height: '100%',
             minHeight: 0,
-            borderRadius: 3,
-            border: '1px solid rgba(15, 23, 42, 0.08)',
-            bgcolor: '#ffffff',
-            boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.06)',
-            p: { xs: 1, sm: 1.5, md: 2 },
+            // borderRadius: 3,
+            p: 0,
+            // border: '1px solid rgba(15, 23, 42, 0.08)',
+            // bgcolor: '#ffffff',
+            // boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.06)',
+            // p: { xs: 1, sm: 1.5, md: 2 },
             overflow: 'hidden',
           }}
         >

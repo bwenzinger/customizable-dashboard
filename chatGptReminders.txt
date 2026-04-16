@@ -42,6 +42,7 @@ Draggable grid behavior preferences:
 - Rich text edit/view mode should preserve the same sanitized output, including safe inline styles for color, highlight, font size, font family, alignment, line height, and text decorations.
 - Rich text color/highlight controls should preserve editor selection; prefer toolbar swatches/custom prompts over native color inputs that steal focus before formatting runs.
 - Text editing surfaces inside cards should opt out of grid drag gestures and grid-level Ctrl/Cmd+Z so typing, selecting, formatting, and native editor undo feel normal.
+- React 19 click-to-source tooling should not rely on `click-to-react-component`/`_debugSource`; use dev-only JSX source metadata injection plus `click-to-component-browser` (or the matching browser extension) so Option+Click/Option+RightClick can still open VS Code from Vite.
 
 Resize/grid preferences:
 
