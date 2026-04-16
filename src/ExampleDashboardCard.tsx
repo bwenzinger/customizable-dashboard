@@ -62,6 +62,7 @@ export function ExampleDashboardCard(
           userSelect: 'none',
           alignItems: 'stretch',
           justifyContent: 'stretch',
+          padding: 0,
         }}
         component="img"
         src={item.imageSrc}
