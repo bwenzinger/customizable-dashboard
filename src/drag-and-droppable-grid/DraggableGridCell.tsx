@@ -118,7 +118,8 @@ export function DraggableGridCell(
               border: '1px dashed var(--draggable-grid-edit-border-color)',
               backgroundColor: 'var(--draggable-grid-edit-surface-tint)',
               boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
-              transition: `border-color ${Math.min(animationMs, 140)}ms ease, background ${Math.min(animationMs, 140)}ms ease, opacity ${Math.min(animationMs, 140)}ms ease`,
+              transform: 'translateY(0px)',
+              transition: `border-color ${Math.min(animationMs, 140)}ms ease, background ${Math.min(animationMs, 140)}ms ease, opacity ${Math.min(animationMs, 140)}ms ease, transform ${Math.min(animationMs, 120)}ms cubic-bezier(0.2, 0, 0, 1)`,
             }
           : undefined,
         '&:hover::after':
@@ -126,6 +127,20 @@ export function DraggableGridCell(
             ? {
                 borderColor: alpha(theme.palette.primary.main, 0.34),
                 backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              }
+            : undefined,
+        '&:has(.draggable-grid-hover-sync:hover)::after':
+          canEdit && !isDragDisabled
+            ? {
+                transform:
+                  'translateY(var(--draggable-grid-hover-lift-y, -2px))',
+              }
+            : undefined,
+        '&:has(.draggable-grid-hover-sync):has(.draggable-grid-resize-handle:hover)::after':
+          canEdit && !isDragDisabled
+            ? {
+                transform:
+                  'translateY(var(--draggable-grid-hover-lift-y, -2px))',
               }
             : undefined,
         ...(isDragDisabled

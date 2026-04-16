@@ -52,6 +52,7 @@ Resize/grid preferences:
 - Item resize-handle interactions should feel intentional and easy to understand.
 - The item resize handle should stay visually inside the card.
 - Hover/lift animations should move the resize handle with the card so it feels attached.
+- Any edit-mode overlays or affordances, like dashed editable borders, should move with the same hover/lift animation as the card so they feel attached rather than layered on top.
 - The resize handle style should be modern and subtle.
 - Resizing across multiple widths/heights should stay smooth and should not jitter or snap.
 - Width/height changes during resize should remain visibly animated rather than jumping instantly.
