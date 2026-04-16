@@ -1143,14 +1143,21 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
     >
       {canEdit && (enableUndo || enableCollapse || enableOptimize) ? (
         <Box
-          sx={{
+          sx={(currentTheme) => ({
             position: 'absolute',
             top: 16,
             right: 16,
             zIndex: 10,
             display: 'flex',
             gap: 1,
-          }}
+            px: 0.75,
+            py: 0.75,
+            borderRadius: 999,
+            border: `1px solid ${alpha(currentTheme.palette.primary.main, 0.14)}`,
+            backgroundColor: alpha(currentTheme.palette.common.white, 0.84),
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0px 12px 28px rgba(15, 23, 42, 0.12)',
+          })}
         >
           {enableOptimize ? (
             <Button
@@ -1159,12 +1166,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               onClick={handleOptimize}
               disabled={!canOptimize}
               title="Reorder cards to pack available space efficiently"
-              sx={{
+              sx={(currentTheme) => ({
                 borderRadius: 999,
                 px: 2,
                 boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
                 backgroundColor: '#ffffff',
-              }}
+                border: `1px solid ${alpha(currentTheme.palette.primary.main, 0.14)}`,
+              })}
             >
               Optimize
             </Button>
@@ -1177,12 +1185,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               onClick={handleCollapse}
               disabled={!canCollapse}
               title="Compact cards while preserving visual order"
-              sx={{
+              sx={(currentTheme) => ({
                 borderRadius: 999,
                 px: 2,
                 boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
                 backgroundColor: '#ffffff',
-              }}
+                border: `1px solid ${alpha(currentTheme.palette.primary.main, 0.14)}`,
+              })}
             >
               Collapse
             </Button>
@@ -1194,12 +1203,13 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               color="inherit"
               onClick={handleUndo}
               disabled={!canUndo}
-              sx={{
+              sx={(currentTheme) => ({
                 borderRadius: 999,
                 px: 2,
                 boxShadow: '0px 4px 14px rgba(16, 24, 40, 0.10)',
                 backgroundColor: '#ffffff',
-              }}
+                border: `1px solid ${alpha(currentTheme.palette.primary.main, 0.14)}`,
+              })}
             >
               Undo
             </Button>
@@ -1210,9 +1220,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       <Box
         ref={ref}
         className={className}
+        data-draggable-grid-editable={canEdit ? 'true' : undefined}
         onDragOver={handleContainerDragOver}
         onDrop={handleContainerDrop}
-        sx={{
+        sx={(currentTheme) => ({
           position: 'relative',
           height: '100%',
           width: '100%',
@@ -1231,7 +1242,21 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           overflow: 'hidden',
           padding: containerPadding,
           paddingBottom: `${containerPadding + gridResizeFooterHeight}px`,
-        }}
+          ...(canEdit
+            ? {
+                ...currentTheme.customStyles.editableGridCanvas,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: containerPadding / 2,
+                  borderRadius: '18px',
+                  border: `1px dashed ${alpha(currentTheme.palette.primary.main, 0.2)}`,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                },
+              }
+            : null),
+        })}
       >
         {showGridlines ? (
           <DebugGridOverlay
@@ -1254,6 +1279,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               rowStart={item.row ?? 1}
               columnStart={item.column ?? 1}
               setItemRef={setItemRef}
+              canEdit={canEdit}
               isDragDisabled={
                 !canEdit || resizeState !== null || gridResizeState !== null
               }
@@ -1299,7 +1325,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         {canEdit ? (
           <Box
             onMouseDown={handleGridResizeMouseDown}
-            sx={{
+            sx={(currentTheme) => ({
               position: 'absolute',
               top: `${gridContentHeight + containerPadding + 8}px`,
               left: '50%',
@@ -1309,24 +1335,25 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
               borderRadius: 999,
               cursor: 'ns-resize',
               zIndex: 3,
-              bgcolor: 'rgba(15, 23, 42, 0.08)',
-              border: '1px solid rgba(15, 23, 42, 0.12)',
+              bgcolor: alpha(currentTheme.palette.primary.main, 0.08),
+              border: `1px dashed ${alpha(currentTheme.palette.primary.main, 0.28)}`,
+              boxShadow: '0px 10px 24px rgba(37, 99, 235, 0.10)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '4px',
-            }}
+            })}
           >
             {/* Bottom handle for changing the total number of available rows. */}
             {Array.from({ length: 3 }, (_, index) => (
               <Box
                 key={`grid-row-handle-${index}`}
-                sx={{
+                sx={(currentTheme) => ({
                   width: 14,
                   height: '2px',
                   borderRadius: 999,
-                  bgcolor: 'rgba(15, 23, 42, 0.45)',
-                }}
+                  bgcolor: alpha(currentTheme.palette.primary.main, 0.45),
+                })}
               />
             ))}
           </Box>

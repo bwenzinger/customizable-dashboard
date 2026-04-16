@@ -6,6 +6,7 @@ declare module '@mui/material/styles' {
     customStyles: {
       floatingCard: SystemStyleObject<MuiTheme>;
       interactiveCard: SystemStyleObject<MuiTheme>;
+      editableGridCanvas: SystemStyleObject<MuiTheme>;
       pagePaddingBottom: SystemStyleObject<MuiTheme>;
       shadowGutter: SystemStyleObject<MuiTheme>;
     };
@@ -15,6 +16,7 @@ declare module '@mui/material/styles' {
     customStyles?: {
       floatingCard?: SystemStyleObject<MuiTheme>;
       interactiveCard?: SystemStyleObject<MuiTheme>;
+      editableGridCanvas?: SystemStyleObject<MuiTheme>;
       pagePaddingBottom?: SystemStyleObject<MuiTheme>;
       shadowGutter?: SystemStyleObject<MuiTheme>;
     };

@@ -28,6 +28,8 @@ Draggable grid behavior preferences:
 - Final layout changes should commit on drop, not during transient drag-over states.
 - DraggableGrid should be read-only by default unless `canEdit={true}` is passed.
 - When `canEdit` is false, disable drag/drop edits, hide resize handles, hide Collapse/Optimize/Undo controls, hide the bottom row-resize handle, and disable Ctrl/Cmd+Z undo.
+- When `canEdit` is true, the grid should visibly read as editable through reusable layout chrome: a lightly tinted canvas, subtle dashed item outlines, and clearer resize/tool affordances rather than relying only on cursors or buttons.
+- Keep edit-mode chrome subtle and content-first; avoid heavy gradients or decorative top accent bars on cards.
 - The demo should include an edit-mode toggle that drives `canEdit`; when viewing/read-only, external demo controls like Add Item should not mutate the layout.
 - The demo should support multiple named dashboards in localStorage, with controls to create a new draft, save/update the active dashboard, save a copy, and switch which saved dashboard is currently displayed.
 - The demo storage can target only the current multi-dashboard localStorage format; no legacy single-layout migration path is needed.

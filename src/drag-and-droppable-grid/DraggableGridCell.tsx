@@ -14,6 +14,7 @@ type DraggableGridCellProps = {
   columnStart: number;
   clampedWidth: number;
   clampedHeight: number;
+  canEdit: boolean;
   isDragging: boolean;
   isResizing: boolean;
   isDragDisabled: boolean;
@@ -39,6 +40,7 @@ export function DraggableGridCell(
     columnStart,
     clampedWidth,
     clampedHeight,
+    canEdit,
     isDragging,
     isResizing,
     isDragDisabled,
@@ -62,6 +64,14 @@ export function DraggableGridCell(
   const visibleResizeHandleWidth = Math.max(resizeHandleWidth, 24);
   const gripColor = alpha(theme.palette.text.secondary, 0.42);
   const activeGripColor = alpha(theme.palette.primary.main, 0.72);
+  const editBorderColor = alpha(
+    theme.palette.primary.main,
+    isResizing ? 0.48 : isDragging ? 0.42 : 0.22
+  );
+  const editSurfaceTint = alpha(
+    theme.palette.primary.main,
+    isResizing ? 0.1 : isDragging ? 0.08 : 0.035
+  );
   const cellClassName = ['draggable-grid-cell', itemClassName]
     .filter(Boolean)
     .join(' ');
@@ -74,13 +84,19 @@ export function DraggableGridCell(
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       className={cellClassName}
+      data-draggable-grid-editable={canEdit ? 'true' : undefined}
+      data-draggable-grid-dragging={isDragging ? 'true' : undefined}
+      data-draggable-grid-resizing={isResizing ? 'true' : undefined}
       sx={{
         '--draggable-grid-hover-lift-y': isResizing ? '0px' : '-2px',
+        '--draggable-grid-edit-border-color': editBorderColor,
+        '--draggable-grid-edit-surface-tint': editSurfaceTint,
         position: 'relative',
         zIndex: isDragging ? 2 : 1,
         minWidth: 0,
         height: '100%',
         alignSelf: 'stretch',
+        borderRadius: '16px',
         gridColumn: `${columnStart} / span ${clampedWidth}`,
         gridRow: `${rowStart} / span ${clampedHeight}`,
         cursor: isDragDisabled ? 'default' : isDragging ? 'grabbing' : 'grab',
@@ -89,6 +105,29 @@ export function DraggableGridCell(
         transform: 'scale(1)',
         filter: 'none',
         transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms ease, filter ${Math.min(animationMs, 120)}ms ease`,
+        // The cell-level edit ring makes the "editable" affordance reusable even
+        // when consumers render custom card content instead of the demo widgets.
+        '&::after': canEdit
+          ? {
+              content: '""',
+              position: 'absolute',
+              inset: 2,
+              zIndex: 1,
+              pointerEvents: 'none',
+              borderRadius: '14px',
+              border: '1px dashed var(--draggable-grid-edit-border-color)',
+              backgroundColor: 'var(--draggable-grid-edit-surface-tint)',
+              boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
+              transition: `border-color ${Math.min(animationMs, 140)}ms ease, background ${Math.min(animationMs, 140)}ms ease, opacity ${Math.min(animationMs, 140)}ms ease`,
+            }
+          : undefined,
+        '&:hover::after':
+          canEdit && !isDragDisabled
+            ? {
+                borderColor: alpha(theme.palette.primary.main, 0.34),
+                backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              }
+            : undefined,
         ...(isDragDisabled
           ? {
               '& *': {

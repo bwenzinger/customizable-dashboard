@@ -6,7 +6,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
-import type { Theme } from '@mui/material/styles';
+import { alpha, type Theme } from '@mui/material/styles';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
 import { RichTextDashboardItem } from './RichTextDashboardItem';
 
@@ -26,12 +26,21 @@ export function ExampleDashboardCard(
 ): React.JSX.Element {
   const { item, isDragging, isResizing, canEdit, onItemChanged } = props;
   const theme = useTheme();
+  const itemKind = item.kind ?? 'card';
   const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
+  const editableCardChromeSx = canEdit
+    ? getEditableCardChromeSx(theme)
+    : {};
+  const editableImageCardSx = canEdit
+    ? {
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+        boxShadow: `0px 1px 2px rgba(16, 24, 40, 0.04), 0px 4px 12px rgba(16, 24, 40, 0.06), inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.06)}`,
+      }
+    : {};
   const itemWidth = item.width ?? 1;
   const itemHeight = item.height ?? 1;
   const isSingleRowCard = itemHeight === 1;
   const isTitleOnlyCard = isSingleRowCard && itemWidth <= 2;
-  const itemKind = item.kind ?? 'card';
   const shouldShowCurrentChip = !isTitleOnlyCard;
   const shouldShowMaxChip = !isSingleRowCard;
   const useCompactChipLayout = isSingleRowCard || itemWidth === 1;
@@ -41,6 +50,7 @@ export function ExampleDashboardCard(
       <Card
         sx={{
           ...theme.customStyles.floatingCard,
+          ...editableImageCardSx,
           height: '100%',
           opacity: isDragging ? 0.7 : 1,
           cursor: 'grab',
@@ -68,6 +78,7 @@ export function ExampleDashboardCard(
         sx={{
           ...theme.customStyles.floatingCard,
           ...interactiveCardSx,
+          ...editableCardChromeSx,
           height: '100%',
           opacity: isDragging ? 0.7 : 1,
           cursor: 'grab',
@@ -91,6 +102,7 @@ export function ExampleDashboardCard(
             title={item.title}
             itemKind={itemKind}
             isTitleOnlyCard={isTitleOnlyCard}
+            canEdit={canEdit}
           />
 
           {!isTitleOnlyCard ? (
@@ -112,6 +124,7 @@ export function ExampleDashboardCard(
       sx={{
         ...theme.customStyles.floatingCard,
         ...interactiveCardSx,
+        ...editableCardChromeSx,
         height: '100%',
         opacity: isDragging ? 0.7 : 1,
         cursor: 'grab',
@@ -163,6 +176,7 @@ export function ExampleDashboardCard(
                 label="Max"
                 value={`${formatCardSizeLimit(item.maxWidth)} x ${formatCardSizeLimit(item.maxHeight)}`}
                 compact={useCompactChipLayout}
+                canEdit={canEdit}
               />
             ) : null}
             {shouldShowCurrentChip ? (
@@ -170,6 +184,7 @@ export function ExampleDashboardCard(
                 label="Current"
                 value={`${itemWidth} x ${itemHeight}`}
                 compact={useCompactChipLayout}
+                canEdit={canEdit}
               />
             ) : null}
           </Box>
@@ -183,13 +198,17 @@ type DashboardWidgetHeaderProps = {
   title?: string;
   itemKind: NonNullable<DraggableGridItem['kind']>;
   isTitleOnlyCard: boolean;
+  canEdit: boolean;
 };
 
 function DashboardWidgetHeader({
   title,
   itemKind,
   isTitleOnlyCard,
+  canEdit,
 }: DashboardWidgetHeaderProps) {
+  const accentColor = getWidgetAccentColor(itemKind);
+
   return (
     <Box
       sx={{
@@ -206,8 +225,11 @@ function DashboardWidgetHeader({
           width: 26,
           height: 26,
           borderRadius: 1.5,
-          bgcolor: getWidgetAccentColor(itemKind).background,
-          color: getWidgetAccentColor(itemKind).text,
+          bgcolor: accentColor.background,
+          color: accentColor.text,
+          border: canEdit
+            ? `1px dashed ${alpha(accentColor.text, 0.24)}`
+            : '1px solid transparent',
           display: 'grid',
           flexShrink: 0,
           fontSize: '0.76rem',
@@ -298,7 +320,9 @@ function DashboardWidgetBody({
     return (
       <Box
         sx={{
-          borderLeft: '3px solid rgba(37, 99, 235, 0.45)',
+          borderLeft: canEdit
+            ? '2px dashed rgba(37, 99, 235, 0.38)'
+            : '3px solid rgba(37, 99, 235, 0.45)',
           display: 'flex',
           flex: 1,
           flexDirection: 'column',
@@ -445,13 +469,17 @@ type DashboardCardChipProps = {
   label: string;
   value: string;
   compact?: boolean;
+  canEdit: boolean;
 };
 
 function DashboardCardChip({
   label,
   value,
   compact = false,
+  canEdit,
 }: DashboardCardChipProps) {
+  const theme = useTheme();
+
   return (
     <Box
       sx={{
@@ -461,8 +489,12 @@ function DashboardCardChip({
         gap: compact ? 0.5 : 0.65,
         maxWidth: '100%',
         borderRadius: 999,
-        border: '1px solid rgba(15, 23, 42, 0.08)',
-        bgcolor: 'rgba(15, 23, 42, 0.05)',
+        border: canEdit
+          ? `1px dashed ${alpha(theme.palette.primary.main, 0.2)}`
+          : '1px solid rgba(15, 23, 42, 0.08)',
+        bgcolor: canEdit
+          ? alpha(theme.palette.primary.main, 0.06)
+          : 'rgba(15, 23, 42, 0.05)',
         px: compact ? 0.85 : 1,
         py: compact ? 0.55 : 0.65,
       }}
@@ -521,5 +553,12 @@ function getInteractiveCardSx(theme: Theme, isResizing: boolean) {
         : {}),
       transform: 'none',
     },
+  };
+}
+
+function getEditableCardChromeSx(theme: Theme) {
+  return {
+    borderColor: alpha(theme.palette.primary.main, 0.14),
+    boxShadow: `0 2px 4px #0000000f, inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.06)}`,
   };
 }

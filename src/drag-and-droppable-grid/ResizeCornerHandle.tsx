@@ -48,6 +48,18 @@ export function ResizeCornerHandle(
         transform: 'translateY(0px)',
         transition: `opacity ${Math.min(animationMs, 120)}ms ease, transform ${Math.min(animationMs, 120)}ms cubic-bezier(0.2, 0, 0, 1)`,
         opacity: isResizing ? 1 : 0.9,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          background: isResizing
+            ? 'linear-gradient(135deg, transparent 34%, rgba(255, 255, 255, 0.9) 34%, rgba(255, 255, 255, 0.98) 100%)'
+            : 'linear-gradient(135deg, transparent 40%, rgba(255, 255, 255, 0.72) 40%, rgba(255, 255, 255, 0.92) 100%)',
+          boxShadow: isResizing
+            ? 'inset 1px 1px 0 rgba(67, 56, 202, 0.12)'
+            : 'inset 1px 1px 0 rgba(255, 255, 255, 0.3)',
+          pointerEvents: 'none',
+        },
         '.draggable-grid-cell:has(.draggable-grid-hover-sync:hover) &': {
           transform: 'translateY(var(--draggable-grid-hover-lift-y, -2px))',
         },

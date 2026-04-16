@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
 
 // const PAGE_PADDING_X = 20;
 // const PAGE_PADDING_BOTTOM = 20;
@@ -50,6 +50,11 @@ theme = createTheme(theme, {
       ':hover': interactiveCardHoverStyles,
       [resizeHandleHoverSelector]: interactiveCardHoverStyles,
       boxShadow: '0 2px 4px #0000000f',
+    },
+    editableGridCanvas: {
+      borderRadius: '20px',
+      backgroundColor: alpha(theme.palette.primary.main, 0.02),
+      boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
     },
     shadowGutter: {
       marginX: `-${MAX_SHADOW_HORIZONTAL_GUTTER}px`,
