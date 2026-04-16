@@ -12,9 +12,21 @@ export type DraggableGridLayoutCommitReason =
   | 'collapse'
   | 'optimize';
 
+export type DraggableGridChartType =
+  | 'line'
+  | 'scatter'
+  | 'pie'
+  | 'column';
+
+export type DraggableGridChartPoint = {
+  x: number;
+  y: number;
+};
+
 export type DraggableGridItemKind =
   | 'card'
   | 'button'
+  | 'chart'
   | 'richText'
   | 'image'
   | 'metric';
@@ -57,6 +69,11 @@ export type DraggableGridItem = {
   description?: string;
   body?: string;
   actionLabel?: string;
+  chartType?: DraggableGridChartType;
+  chartTrend?: string;
+  chartValues?: number[];
+  chartLabels?: string[];
+  chartPoints?: DraggableGridChartPoint[];
   metricLabel?: string;
   metricValue?: string;
   metricTrend?: string;

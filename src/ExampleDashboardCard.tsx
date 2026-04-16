@@ -7,7 +7,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { alpha, type Theme } from '@mui/material/styles';
-import type { DraggableGridItem } from './drag-and-droppable-grid/types';
+import type {
+  DraggableGridChartPoint,
+  DraggableGridChartType,
+  DraggableGridItem,
+} from './drag-and-droppable-grid/types';
 import { RichTextDashboardItem } from './RichTextDashboardItem';
 
 type DashboardCardProps = {
@@ -240,13 +244,18 @@ function DashboardWidgetHeader({
   canEdit,
 }: DashboardWidgetHeaderProps) {
   const accentColor = getWidgetAccentColor(itemKind);
+  const shouldCenterHeaderRow = !isTitleOnlyCard && itemKind === 'chart';
 
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: isTitleOnlyCard ? 'column' : 'row',
-        alignItems: isTitleOnlyCard ? 'center' : 'flex-start',
+        alignItems: isTitleOnlyCard
+          ? 'center'
+          : shouldCenterHeaderRow
+            ? 'center'
+            : 'flex-start',
         gap: 1,
         minWidth: 0,
       }}
@@ -345,6 +354,22 @@ function DashboardWidgetBody({
           {item.actionLabel ?? 'Open'}
         </Button>
       </Box>
+    );
+  }
+
+  if (item.kind === 'chart') {
+    return (
+      <ChartWidgetBody
+        chartType={item.chartType}
+        description={item.description}
+        chartTrend={item.chartTrend}
+        labels={item.chartLabels}
+        points={item.chartPoints}
+        values={item.chartValues}
+        cardWidth={item.width ?? 1}
+        cardHeight={item.height ?? 1}
+        isSingleRowCard={isSingleRowCard}
+      />
     );
   }
 
@@ -455,10 +480,655 @@ function WidgetSupportingText({ children, clamp }: WidgetSupportingTextProps) {
   );
 }
 
+function ChartWidgetBody({
+  chartType,
+  description,
+  chartTrend,
+  labels,
+  points,
+  values,
+  cardWidth,
+  cardHeight,
+  isSingleRowCard,
+}: {
+  chartType?: DraggableGridChartType;
+  description?: string;
+  chartTrend?: string;
+  labels?: string[];
+  points?: DraggableGridChartPoint[];
+  values?: number[];
+  cardWidth: number;
+  cardHeight: number;
+  isSingleRowCard: boolean;
+}) {
+  const resolvedChartType = chartType ?? 'column';
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flex: 1,
+        flexDirection: 'column',
+        gap: 1,
+        minHeight: 0,
+        minWidth: 0,
+      }}
+    >
+      {description ? (
+        <WidgetSupportingText clamp={1}>{description}</WidgetSupportingText>
+      ) : null}
+      <ChartCanvas
+        chartType={resolvedChartType}
+        isSingleRowCard={isSingleRowCard}
+        labels={labels}
+        points={points}
+        values={values}
+        cardWidth={cardWidth}
+        cardHeight={cardHeight}
+      />
+      {chartTrend ? (
+        <Typography
+          sx={{
+            color: 'info.dark',
+            fontSize: '0.76rem',
+            fontWeight: 700,
+            lineHeight: 1.2,
+          }}
+        >
+          {chartTrend}
+        </Typography>
+      ) : null}
+    </Box>
+  );
+}
+
+function ChartCanvas({
+  chartType,
+  isSingleRowCard,
+  labels,
+  points,
+  values,
+  cardWidth,
+  cardHeight,
+}: {
+  chartType: DraggableGridChartType;
+  isSingleRowCard: boolean;
+  labels?: string[];
+  points?: DraggableGridChartPoint[];
+  values?: number[];
+  cardWidth: number;
+  cardHeight: number;
+}) {
+  switch (chartType) {
+    case 'line':
+      return (
+        <LineChartPreview
+          isSingleRowCard={isSingleRowCard}
+          labels={labels}
+          values={values}
+        />
+      );
+    case 'scatter':
+      return (
+        <ScatterChartPreview
+          isSingleRowCard={isSingleRowCard}
+          points={points}
+        />
+      );
+    case 'pie':
+      return (
+        <PieChartPreview
+          isSingleRowCard={isSingleRowCard}
+          labels={labels}
+          values={values}
+          cardWidth={cardWidth}
+          cardHeight={cardHeight}
+        />
+      );
+    case 'column':
+    default:
+      return (
+        <ColumnChartPreview
+          isSingleRowCard={isSingleRowCard}
+          labels={labels}
+          values={values}
+        />
+      );
+  }
+}
+
+function LineChartPreview({
+  isSingleRowCard,
+  labels,
+  values,
+}: {
+  isSingleRowCard: boolean;
+  labels?: string[];
+  values?: number[];
+}) {
+  const chartValues =
+    values && values.length > 1 ? values : [24, 31, 28, 37, 35, 43, 48];
+  const chartLabels = labels && labels.length === chartValues.length
+    ? labels
+    : chartValues.map((_, index) => `${index + 1}`);
+  const chartHeight = isSingleRowCard ? 54 : 82;
+  const svgWidth = 180;
+  const svgHeight = 64;
+  const svgPaddingX = 8;
+  const svgPaddingY = 8;
+  const minValue = Math.min(...chartValues);
+  const maxValue = Math.max(...chartValues);
+  const valueRange = Math.max(maxValue - minValue, 1);
+  const pointsString = chartValues
+    .map((value, index) => {
+      const x =
+        svgPaddingX +
+        (index / Math.max(chartValues.length - 1, 1)) *
+          (svgWidth - svgPaddingX * 2);
+      const y =
+        svgHeight -
+        svgPaddingY -
+        ((value - minValue) / valueRange) * (svgHeight - svgPaddingY * 2);
+
+      return `${x},${y}`;
+    })
+    .join(' ');
+  const linePoints = pointsString.split(' ');
+  const areaStart = `${svgPaddingX},${svgHeight - svgPaddingY}`;
+  const areaEnd = `${
+    svgWidth - svgPaddingX
+  },${svgHeight - svgPaddingY}`;
+  const lastPoint = linePoints.at(-1)?.split(',') ?? ['0', '0'];
+
+  return (
+    <Box sx={getChartSurfaceSx(isSingleRowCard)}>
+      <Box
+        component="svg"
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        aria-hidden
+        sx={{
+          width: '100%',
+          height: `${chartHeight}px`,
+          display: 'block',
+          flexShrink: 0,
+        }}
+      >
+        {[0.25, 0.5, 0.75].map((step) => {
+          const y = svgPaddingY + (svgHeight - svgPaddingY * 2) * step;
+
+          return (
+            <Box
+              key={`line-grid-${step}`}
+              component="line"
+              x1={svgPaddingX}
+              y1={y}
+              x2={svgWidth - svgPaddingX}
+              y2={y}
+              sx={{
+                stroke: 'rgba(14, 116, 144, 0.12)',
+                strokeWidth: 1,
+              }}
+            />
+          );
+        })}
+        <Box
+          component="polygon"
+          points={`${areaStart} ${pointsString} ${areaEnd}`}
+          sx={{ fill: 'rgba(14, 116, 144, 0.10)' }}
+        />
+        <Box
+          component="polyline"
+          points={pointsString}
+          sx={{
+            fill: 'none',
+            stroke: '#0f766e',
+            strokeWidth: 2.5,
+            strokeLinejoin: 'round',
+            strokeLinecap: 'round',
+          }}
+        />
+        <Box
+          component="circle"
+          cx={lastPoint[0]}
+          cy={lastPoint[1]}
+          r="4"
+          sx={{ fill: '#0f766e', stroke: '#ffffff', strokeWidth: 2 }}
+        />
+      </Box>
+      {!isSingleRowCard ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${chartLabels.length}, minmax(0, 1fr))`,
+            gap: 0.5,
+          }}
+        >
+          {chartLabels.map((label) => (
+            <Typography
+              key={`line-label-${label}`}
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.58rem',
+                fontWeight: 700,
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </Typography>
+          ))}
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function ColumnChartPreview({
+  isSingleRowCard,
+  labels,
+  values,
+}: {
+  isSingleRowCard: boolean;
+  labels?: string[];
+  values?: number[];
+}) {
+  const chartValues = values && values.length > 0 ? values : [24, 31, 28, 37];
+  const chartLabels = labels && labels.length === chartValues.length
+    ? labels
+    : chartValues.map((_, index) => `${index + 1}`);
+  const maxValue = Math.max(...chartValues, 1);
+  const chartHeight = isSingleRowCard ? 54 : 112;
+  const svgWidth = 180;
+  const svgHeight = 112;
+  const svgPaddingX = 8;
+  const svgPaddingTop = 8;
+  const svgPaddingBottom = 18;
+  const availableWidth = svgWidth - svgPaddingX * 2;
+  const slotWidth = availableWidth / chartValues.length;
+  const barWidth = Math.min(28, slotWidth * 0.72);
+  const baselineY = svgHeight - svgPaddingBottom;
+
+  return (
+    <Box sx={getChartSurfaceSx(isSingleRowCard)}>
+      <Box
+        component="svg"
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        aria-hidden
+        sx={{
+          width: '100%',
+          height: isSingleRowCard ? `${chartHeight}px` : '100%',
+          minHeight: isSingleRowCard ? undefined : `${chartHeight}px`,
+          display: 'block',
+          flex: isSingleRowCard ? '0 0 auto' : 1,
+        }}
+      >
+        {[0.25, 0.5, 0.75].map((step) => {
+          const y = svgPaddingTop + (baselineY - svgPaddingTop) * step;
+
+          return (
+            <Box
+              key={`column-grid-${step}`}
+              component="line"
+              x1={svgPaddingX}
+              y1={y}
+              x2={svgWidth - svgPaddingX}
+              y2={y}
+              sx={{
+                stroke: 'rgba(51, 65, 85, 0.10)',
+                strokeWidth: 1,
+              }}
+            />
+          );
+        })}
+        <Box
+          component="line"
+          x1={svgPaddingX}
+          y1={baselineY}
+          x2={svgWidth - svgPaddingX}
+          y2={baselineY}
+          sx={{
+            stroke: 'rgba(51, 65, 85, 0.22)',
+            strokeWidth: 1.4,
+          }}
+        />
+        {chartValues.map((value, index) => {
+          const barHeight = Math.max(
+            10,
+            ((value / maxValue) * (baselineY - svgPaddingTop - 2))
+          );
+          const barX = svgPaddingX + slotWidth * index + (slotWidth - barWidth) / 2;
+          const barY = baselineY - barHeight;
+          const isLastBar = index === chartValues.length - 1;
+
+          return (
+            <Box
+              key={`column-bar-${index}`}
+              component="rect"
+              x={barX}
+              y={barY}
+              width={barWidth}
+              height={barHeight}
+              rx={2}
+              ry={2}
+              sx={{
+                fill: isLastBar ? '#0f766e' : 'rgba(15, 118, 110, 0.34)',
+                filter: isLastBar
+                  ? 'drop-shadow(0px 6px 12px rgba(15, 118, 110, 0.16))'
+                  : 'none',
+              }}
+            />
+          );
+        })}
+      </Box>
+      {!isSingleRowCard ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${chartLabels.length}, minmax(0, 1fr))`,
+            gap: 0.5,
+          }}
+        >
+          {chartLabels.map((label) => (
+            <Typography
+              key={`column-label-${label}`}
+              sx={{
+                color: 'text.secondary',
+                fontSize: '0.58rem',
+                fontWeight: 700,
+                textAlign: 'center',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </Typography>
+          ))}
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function PieChartPreview({
+  isSingleRowCard,
+  labels,
+  values,
+  cardWidth,
+  cardHeight,
+}: {
+  isSingleRowCard: boolean;
+  labels?: string[];
+  values?: number[];
+  cardWidth: number;
+  cardHeight: number;
+}) {
+  const chartValues = values && values.length > 0 ? values : [42, 24, 19, 15];
+  const chartLabels = labels && labels.length === chartValues.length
+    ? labels
+    : ['A', 'B', 'C', 'D'];
+  const isCompactPieCard =
+    !isSingleRowCard && (cardHeight <= 2 || cardWidth <= 2);
+  const showLegend = !isSingleRowCard && !isCompactPieCard && chartLabels.length > 0;
+  const donutSize = isSingleRowCard
+    ? 56
+    : isCompactPieCard
+      ? 'min(100%, 84px)'
+      : 'min(100%, 112px)';
+  const totalValue = chartValues.reduce((sum, value) => sum + value, 0);
+  const pieColors = ['#0f766e', '#0891b2', '#6366f1', '#f59e0b', '#ef4444'];
+  const conicSegments = chartValues
+    .reduce(
+      (result, value, index) => {
+        const share = (value / Math.max(totalValue, 1)) * 100;
+        const endPercent = result.currentPercent + share;
+
+        return {
+          currentPercent: endPercent,
+          segments: [
+            ...result.segments,
+            `${pieColors[index % pieColors.length]} ${result.currentPercent}% ${endPercent}%`,
+          ],
+        };
+      },
+      { currentPercent: 0, segments: [] as string[] }
+    )
+    .segments.join(', ');
+
+  return (
+    <Box
+      sx={{
+        ...getChartSurfaceSx(isSingleRowCard),
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: isSingleRowCard ? 0.75 : isCompactPieCard ? 0.65 : 1.1,
+        minHeight: 0,
+        minWidth: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          width: donutSize,
+          maxWidth: '100%',
+          aspectRatio: '1 / 1',
+          alignSelf: 'center',
+          borderRadius: '50%',
+          background: `conic-gradient(${conicSegments})`,
+          flexShrink: 0,
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: isSingleRowCard ? '13px' : isCompactPieCard ? '26%' : '24%',
+            borderRadius: '50%',
+            backgroundColor: '#ffffff',
+          },
+        }}
+      />
+      {showLegend ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 0.45,
+            width: '100%',
+            maxWidth: 180,
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {chartLabels.map((label, index) => (
+            <Box
+              key={`pie-legend-${label}`}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 0.75,
+                minWidth: 0,
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.55,
+                  minWidth: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    bgcolor: pieColors[index % pieColors.length],
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {label}
+                </Typography>
+              </Box>
+              <Typography
+                sx={{
+                  color: 'text.primary',
+                  fontSize: '0.64rem',
+                  fontWeight: 800,
+                  flexShrink: 0,
+                }}
+              >
+                {chartValues[index]}%
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
+
+function ScatterChartPreview({
+  isSingleRowCard,
+  points,
+}: {
+  isSingleRowCard: boolean;
+  points?: DraggableGridChartPoint[];
+}) {
+  const chartPoints =
+    points && points.length > 1
+      ? points
+      : [
+          { x: 18, y: 24 },
+          { x: 26, y: 31 },
+          { x: 42, y: 36 },
+          { x: 58, y: 47 },
+          { x: 73, y: 54 },
+          { x: 91, y: 63 },
+        ];
+  const xMin = Math.min(...chartPoints.map((point) => point.x));
+  const xMax = Math.max(...chartPoints.map((point) => point.x));
+  const yMin = Math.min(...chartPoints.map((point) => point.y));
+  const yMax = Math.max(...chartPoints.map((point) => point.y));
+  const svgWidth = 180;
+  const svgHeight = isSingleRowCard ? 64 : 108;
+  const svgPaddingX = 12;
+  const svgPaddingY = 10;
+
+  return (
+    <Box sx={getChartSurfaceSx(isSingleRowCard)}>
+      <Box
+        component="svg"
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        aria-hidden
+        sx={{
+          width: '100%',
+          height: isSingleRowCard ? `${svgHeight}px` : '100%',
+          minHeight: isSingleRowCard ? undefined : '108px',
+          display: 'block',
+          flex: isSingleRowCard ? '0 0 auto' : 1,
+        }}
+      >
+        {[0.25, 0.5, 0.75].map((step) => {
+          const y = svgPaddingY + (svgHeight - svgPaddingY * 2) * step;
+          const x = svgPaddingX + (svgWidth - svgPaddingX * 2) * step;
+
+          return (
+            <Box key={`scatter-grid-y-${step}`} component="g">
+              <Box
+                component="line"
+                x1={svgPaddingX}
+                y1={y}
+                x2={svgWidth - svgPaddingX}
+                y2={y}
+                sx={{
+                  stroke: 'rgba(51, 65, 85, 0.10)',
+                  strokeWidth: 1,
+                }}
+              />
+              <Box
+                component="line"
+                x1={x}
+                y1={svgPaddingY}
+                x2={x}
+                y2={svgHeight - svgPaddingY}
+                sx={{
+                  stroke: 'rgba(51, 65, 85, 0.10)',
+                  strokeWidth: 1,
+                }}
+              />
+            </Box>
+          );
+        })}
+        {chartPoints.map((point, index) => {
+          const x =
+            svgPaddingX +
+            ((point.x - xMin) / Math.max(xMax - xMin, 1)) *
+              (svgWidth - svgPaddingX * 2);
+          const y =
+            svgHeight -
+            svgPaddingY -
+            ((point.y - yMin) / Math.max(yMax - yMin, 1)) *
+              (svgHeight - svgPaddingY * 2);
+          const isHighlighted = index === chartPoints.length - 1;
+
+          return (
+            <Box
+              key={`scatter-point-${index}`}
+              component="circle"
+              cx={x}
+              cy={y}
+              r={isHighlighted ? 4.5 : 3.5}
+              sx={{
+                fill: isHighlighted ? '#0f766e' : 'rgba(8, 145, 178, 0.48)',
+                stroke: '#ffffff',
+                strokeWidth: 1.5,
+              }}
+            />
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
+function getChartSurfaceSx(isSingleRowCard: boolean) {
+  return {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 0.65,
+    flex: 1,
+    minHeight: isSingleRowCard ? 0 : 96,
+    px: 1,
+    py: 0.9,
+    borderRadius: 1.5,
+    border: '1px solid rgba(14, 116, 144, 0.14)',
+    bgcolor: 'rgba(14, 116, 144, 0.05)',
+    minWidth: 0,
+    ...(isSingleRowCard
+      ? {
+          justifyContent: 'center',
+        }
+      : {
+          justifyContent: 'space-between',
+        }),
+  };
+}
+
 function getWidgetInitial(kind: NonNullable<DraggableGridItem['kind']>) {
   const labels: Record<NonNullable<DraggableGridItem['kind']>, string> = {
     button: 'B',
     card: 'C',
+    chart: 'G',
     image: 'I',
     metric: 'M',
     richText: 'T',
@@ -479,6 +1149,10 @@ function getWidgetAccentColor(kind: NonNullable<DraggableGridItem['kind']>) {
     card: {
       background: 'rgba(15, 23, 42, 0.08)',
       text: '#334155',
+    },
+    chart: {
+      background: 'rgba(13, 148, 136, 0.12)',
+      text: '#0f766e',
     },
     image: {
       background: 'rgba(244, 114, 182, 0.14)',
