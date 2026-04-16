@@ -132,54 +132,7 @@ const dashboardToolbarButtonSx = {
   textTransform: 'none',
 };
 
-const initialLayout: DraggableGridItem[] = [
-  {
-    id: 'a',
-    title: 'Overview',
-    width: 1,
-    height: 1,
-  },
-  {
-    id: 'b',
-    title: 'Alerts',
-    width: 1,
-    height: 1,
-  },
-  {
-    id: 'c',
-    title: 'Usage',
-    width: 1,
-    height: 1,
-  },
-  {
-    id: 'd',
-    title: 'Cost',
-    width: 3,
-    height: 3,
-  },
-  {
-    id: 'e',
-    title: 'Forecast',
-    width: 1,
-    height: 1,
-  },
-  {
-    id: 'f',
-    title: 'Settings',
-    width: 1,
-    height: 1,
-  },
-  {
-    id: 'g',
-    title: 'Max Size',
-    width: 1,
-    minWidth: 1,
-    maxWidth: 5,
-    height: 1,
-    minHeight: 1,
-    maxHeight: 5,
-  },
-];
+const emptyDashboardLayout: DraggableGridItem[] = [];
 
 function App() {
   const [initialDashboardState] = useState<DemoDashboardBootstrapState>(
@@ -343,7 +296,7 @@ function App() {
   const handleNewDashboard = useCallback(() => {
     setActiveDashboardId(null);
     setActiveDashboardName(getNextDashboardName(savedDashboards));
-    setLayout(initialLayout);
+    setLayout(emptyDashboardLayout);
     setSaveStatus('Started a new dashboard draft');
     handleCloseAddMenu();
   }, [handleCloseAddMenu, savedDashboards]);
@@ -756,7 +709,7 @@ function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
     dashboards: [],
     activeDashboardId: null,
     activeDashboardName: defaultDashboardName,
-    activeLayout: initialLayout,
+    activeLayout: emptyDashboardLayout,
   } satisfies DemoDashboardBootstrapState;
 
   try {
@@ -778,7 +731,7 @@ function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
           activeDashboardId: activeDashboard?.id ?? null,
           activeDashboardName:
             activeDashboard?.name ?? defaultDashboardName,
-          activeLayout: activeDashboard?.layout ?? initialLayout,
+          activeLayout: activeDashboard?.layout ?? emptyDashboardLayout,
         };
       }
     }
