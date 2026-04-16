@@ -97,6 +97,7 @@ export function ExampleDashboardCard(
           ...theme.customStyles.floatingCard,
           ...interactiveCardSx,
           ...editableCardChromeSx,
+          position: 'relative',
           height: '100%',
           opacity: isDragging ? 0.7 : 1,
           cursor: 'grab',
@@ -149,6 +150,7 @@ export function ExampleDashboardCard(
         ...theme.customStyles.floatingCard,
         ...interactiveCardSx,
         ...editableCardChromeSx,
+        position: 'relative',
         height: '100%',
         opacity: isDragging ? 0.7 : 1,
         cursor: 'grab',
@@ -530,7 +532,7 @@ function DeleteDashboardCardButton({
         height: 24,
         border: `1px solid ${alpha(theme.palette.error.main, 0.16)}`,
         borderRadius: 999,
-        backgroundColor: alpha(theme.palette.common.white, 0.92),
+        backgroundColor: theme.palette.common.white,
         color: alpha(theme.palette.error.dark, 0.92),
         display: 'grid',
         placeItems: 'center',
@@ -540,12 +542,11 @@ function DeleteDashboardCardButton({
         cursor: 'pointer',
         boxShadow: '0px 4px 12px rgba(15, 23, 42, 0.10)',
         transition:
-          'background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease',
+          'background-color 140ms ease, border-color 140ms ease, color 140ms ease',
         '&:hover': {
-          backgroundColor: alpha(theme.palette.error.main, 0.08),
+          backgroundColor: theme.palette.common.white,
           borderColor: alpha(theme.palette.error.main, 0.28),
           color: theme.palette.error.main,
-          transform: 'scale(1.04)',
         },
       })}
     >

@@ -68,10 +68,6 @@ export function DraggableGridCell(
     theme.palette.primary.main,
     isResizing ? 0.48 : isDragging ? 0.42 : 0.22
   );
-  const editSurfaceTint = alpha(
-    theme.palette.primary.main,
-    isResizing ? 0.1 : isDragging ? 0.08 : 0.035
-  );
   const cellClassName = ['draggable-grid-cell', itemClassName]
     .filter(Boolean)
     .join(' ');
@@ -90,7 +86,6 @@ export function DraggableGridCell(
       sx={{
         '--draggable-grid-hover-lift-y': isResizing ? '0px' : '-2px',
         '--draggable-grid-edit-border-color': editBorderColor,
-        '--draggable-grid-edit-surface-tint': editSurfaceTint,
         position: 'relative',
         zIndex: isDragging ? 2 : 1,
         minWidth: 0,
@@ -116,17 +111,15 @@ export function DraggableGridCell(
               pointerEvents: 'none',
               borderRadius: '14px',
               border: '1px dashed var(--draggable-grid-edit-border-color)',
-              backgroundColor: 'var(--draggable-grid-edit-surface-tint)',
               boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.5)',
               transform: 'translateY(0px)',
-              transition: `border-color ${Math.min(animationMs, 140)}ms ease, background ${Math.min(animationMs, 140)}ms ease, opacity ${Math.min(animationMs, 140)}ms ease, transform ${Math.min(animationMs, 120)}ms cubic-bezier(0.2, 0, 0, 1)`,
+              transition: `border-color ${Math.min(animationMs, 140)}ms ease, opacity ${Math.min(animationMs, 140)}ms ease, transform ${Math.min(animationMs, 120)}ms cubic-bezier(0.2, 0, 0, 1)`,
             }
           : undefined,
         '&:hover::after':
           canEdit && !isDragDisabled
             ? {
                 borderColor: alpha(theme.palette.primary.main, 0.34),
-                backgroundColor: alpha(theme.palette.primary.main, 0.05),
               }
             : undefined,
         '&:has(.draggable-grid-hover-sync:hover)::after':
