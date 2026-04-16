@@ -70,6 +70,7 @@ export type DraggableGridItem = {
   description?: string;
   body?: string;
   actionLabel?: string;
+  chartPresetId?: string;
   chartType?: DraggableGridChartType;
   chartTrend?: string;
   chartValues?: number[];

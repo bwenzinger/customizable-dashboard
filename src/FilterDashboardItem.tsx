@@ -1,10 +1,12 @@
 import {
+  type SyntheticEvent,
   useMemo,
   useState,
   useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -12,13 +14,17 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  MenuItem,
   Stack,
   TextField,
 } from '@mui/material';
+import {
+  getUrlParamValue,
+  getUrlSearchSnapshot,
+  subscribeToUrlParamChanges,
+  writeRenamedUrlParamValue,
+  writeUrlParamValue,
+} from './dashboardUrlParams';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
-
-const urlParamsChangedEventName = 'demo-dashboard-url-params-changed';
 
 type FilterDashboardItemProps = {
   item: DraggableGridItem;
@@ -57,16 +63,17 @@ export function FilterDashboardItem({
   const selectValue =
     selectedValue && filterOptions.includes(selectedValue)
       ? selectedValue
-      : filterOptions[0] ?? '';
+      : null;
 
   const handleFilterValueChanged = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    _event: SyntheticEvent,
+    nextValue: string | null
   ) => {
-    const nextValue = event.target.value;
+    const resolvedNextValue = nextValue ?? '';
 
-    writeUrlParamValue(filterParamName, nextValue);
+    writeUrlParamValue(filterParamName, resolvedNextValue);
     onItemChanged?.(item.id, {
-      filterValue: nextValue,
+      filterValue: resolvedNextValue || undefined,
     });
   };
 
@@ -82,37 +89,53 @@ export function FilterDashboardItem({
         }}
       >
         <FilterNoDragBox sx={{ minWidth: 0 }}>
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Value"
-            value={selectValue}
-            onChange={handleFilterValueChanged}
-            disabled={filterOptions.length === 0}
-            variant="outlined"
-            slotProps={{
-              inputLabel: {
-                shrink: true,
-              },
-            }}
+          <Stack
             sx={{
-              '& .MuiInputBase-root': {
-                borderRadius: 3,
-                bgcolor: 'background.paper',
-              },
+              minWidth: 0,
             }}
           >
-            {filterOptions.length === 0 ? (
-              <MenuItem value="">Configure options</MenuItem>
-            ) : (
-              filterOptions.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))
-            )}
-          </TextField>
+            <Autocomplete
+              fullWidth
+              options={filterOptions}
+              value={selectValue}
+              onChange={handleFilterValueChanged}
+              disabled={filterOptions.length === 0}
+              clearOnEscape
+              size="small"
+              noOptionsText={
+                filterOptions.length === 0 ? 'Configure options' : 'No matches'
+              }
+              slotProps={{
+                popper: {
+                  sx: {
+                    zIndex: 1600,
+                  },
+                },
+              }}
+              sx={{
+                minWidth: 0,
+                '& .MuiAutocomplete-inputRoot': {
+                  borderRadius: 3,
+                  bgcolor: 'background.paper',
+                },
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Value"
+                  variant="outlined"
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                  placeholder={
+                    filterOptions.length === 0 ? 'Configure options' : undefined
+                  }
+                />
+              )}
+            />
+          </Stack>
         </FilterNoDragBox>
       </Stack>
 
@@ -246,7 +269,7 @@ function FilterEditorDialog({
                 event.currentTarget.value
               );
             }}
-            helperText="This becomes the key in the browser URL, like ?region=APAC."
+            helperText="This becomes the key in the browser URL, like ?region=South."
           />
         </FilterNoDragBox>
 
@@ -256,7 +279,7 @@ function FilterEditorDialog({
             multiline
             minRows={4}
             label="Filter Options"
-            placeholder="North America, Europe, APAC"
+            placeholder="All regions, Northeast, Midwest, South, West"
             value={editorDraft.filterOptionsText}
             onChange={(
               event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -337,85 +360,5 @@ function getPreferredFilterValue(
     return preferredValue;
   }
 
-  return options[0] ?? '';
-}
-
-function getUrlParamValue(
-  paramName: string,
-  search = getUrlSearchSnapshot()
-): string | null {
-  if (!paramName) {
-    return null;
-  }
-
-  return new URLSearchParams(search).get(paramName);
-}
-
-function writeUrlParamValue(paramName: string, value: string) {
-  if (!paramName) {
-    return;
-  }
-
-  const nextUrl = new URL(window.location.href);
-
-  if (value) {
-    nextUrl.searchParams.set(paramName, value);
-  } else {
-    nextUrl.searchParams.delete(paramName);
-  }
-
-  commitUrlChange(nextUrl);
-}
-
-function writeRenamedUrlParamValue(
-  previousParamName: string,
-  nextParamName: string,
-  nextValue: string
-) {
-  if (!previousParamName && !nextParamName) {
-    return;
-  }
-
-  const nextUrl = new URL(window.location.href);
-
-  if (previousParamName && previousParamName !== nextParamName) {
-    nextUrl.searchParams.delete(previousParamName);
-  }
-
-  if (nextParamName) {
-    if (nextValue) {
-      nextUrl.searchParams.set(nextParamName, nextValue);
-    } else {
-      nextUrl.searchParams.delete(nextParamName);
-    }
-  } else if (previousParamName) {
-    nextUrl.searchParams.delete(previousParamName);
-  }
-
-  commitUrlChange(nextUrl);
-}
-
-function commitUrlChange(nextUrl: URL) {
-  window.history.replaceState(
-    window.history.state,
-    '',
-    `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
-  );
-  // `replaceState` does not emit `popstate`, so filter cards notify each other
-  // explicitly when one of them changes the shared URL params.
-  window.dispatchEvent(new Event(urlParamsChangedEventName));
-}
-
-function subscribeToUrlParamChanges(onStoreChange: () => void) {
-  window.addEventListener('popstate', onStoreChange);
-  window.addEventListener(urlParamsChangedEventName, onStoreChange);
-
-  return () => {
-    window.removeEventListener('popstate', onStoreChange);
-    window.removeEventListener(urlParamsChangedEventName, onStoreChange);
-  };
-}
-
-function getUrlSearchSnapshot() {
-  return window.location.search;
+  return '';
 }

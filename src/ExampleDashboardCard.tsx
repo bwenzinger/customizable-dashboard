@@ -10,6 +10,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { alpha, type Theme } from '@mui/material/styles';
+import { useResolvedDemoElectricityChart } from './demoElectricityData';
 import type {
   DraggableGridChartPoint,
   DraggableGridChartType,
@@ -461,13 +462,8 @@ function DashboardWidgetBody({
 
   if (item.kind === 'chart') {
     return (
-      <ChartWidgetBody
-        chartType={item.chartType}
-        description={item.description}
-        chartTrend={item.chartTrend}
-        labels={item.chartLabels}
-        points={item.chartPoints}
-        values={item.chartValues}
+      <DemoElectricityChartWidgetBody
+        item={item}
         cardWidth={item.width ?? 1}
         cardHeight={item.height ?? 1}
         isSingleRowCard={isSingleRowCard}
@@ -748,6 +744,34 @@ function EditableDashboardTitle({
     >
       {resolvedTitle}
     </Typography>
+  );
+}
+
+function DemoElectricityChartWidgetBody({
+  item,
+  cardWidth,
+  cardHeight,
+  isSingleRowCard,
+}: {
+  item: DraggableGridItem;
+  cardWidth: number;
+  cardHeight: number;
+  isSingleRowCard: boolean;
+}) {
+  const resolvedChart = useResolvedDemoElectricityChart(item);
+
+  return (
+    <ChartWidgetBody
+      chartType={resolvedChart.chartType}
+      description={resolvedChart.description}
+      chartTrend={resolvedChart.trend}
+      labels={resolvedChart.labels}
+      points={resolvedChart.points}
+      values={resolvedChart.values}
+      cardWidth={cardWidth}
+      cardHeight={cardHeight}
+      isSingleRowCard={isSingleRowCard}
+    />
   );
 }
 
@@ -1258,7 +1282,7 @@ function PieChartPreview({
                   flexShrink: 0,
                 }}
               >
-                {chartValues[index]}%
+                {formatPieShare(chartValues[index], totalValue)}
               </Typography>
             </Box>
           ))}
@@ -1393,6 +1417,10 @@ function getChartSurfaceSx(isSingleRowCard: boolean) {
           justifyContent: 'space-between',
         }),
   };
+}
+
+function formatPieShare(value: number, totalValue: number) {
+  return `${(((value / Math.max(totalValue, 1)) * 100) || 0).toFixed(1)}%`;
 }
 
 function getWidgetInitial(kind: NonNullable<DraggableGridItem['kind']>) {

@@ -1,0 +1,199 @@
+{
+  "metadata": {
+    "title": "U.S. Electricity Regional Metrics",
+    "year": 2024,
+    "sources": [
+      {
+        "id": "table-5a",
+        "title": "2024 Average Monthly Bill - Residential",
+        "url": "https://www.eia.gov/electricity/sales_revenue_price/pdf/table_5A.pdf"
+      },
+      {
+        "id": "table-2-8",
+        "title": "Electric Power Annual Table 2.8 - Sales of Electricity to Ultimate Customers by End-Use Sector",
+        "url": "https://www.eia.gov/electricity/annual/table.php?t=epa_02_08.html"
+      },
+      {
+        "id": "table-2-9",
+        "title": "Electric Power Annual Table 2.9 - Revenue from Sales of Electricity to Ultimate Customers by End-Use Sector",
+        "url": "https://www.eia.gov/electricity/annual/table.php?t=epa_02_09.html"
+      },
+      {
+        "id": "table-2-10",
+        "title": "Electric Power Annual Table 2.10 - Average Price of Electricity to Ultimate Customers by End-Use Sector",
+        "url": "https://www.eia.gov/electricity/annual/table.php?t=epa_02_10.html"
+      }
+    ]
+  },
+  "regions": [
+    {
+      "key": "northeast",
+      "label": "Northeast",
+      "shortLabel": "Northeast",
+      "divisionKeys": ["new-england", "middle-atlantic"]
+    },
+    {
+      "key": "midwest",
+      "label": "Midwest",
+      "shortLabel": "Midwest",
+      "divisionKeys": ["east-north-central", "west-north-central"]
+    },
+    {
+      "key": "south",
+      "label": "South",
+      "shortLabel": "South",
+      "divisionKeys": [
+        "south-atlantic",
+        "east-south-central",
+        "west-south-central"
+      ]
+    },
+    {
+      "key": "west",
+      "label": "West",
+      "shortLabel": "West",
+      "divisionKeys": ["mountain", "pacific-contiguous", "pacific-noncontiguous"]
+    }
+  ],
+  "divisions": [
+    {
+      "key": "new-england",
+      "label": "New England",
+      "shortLabel": "New Eng.",
+      "regionKey": "northeast",
+      "residentialCustomers": 6653781,
+      "residentialAverageMonthlyConsumptionKwh": 601,
+      "residentialAveragePriceCentsPerKwh": 27.68,
+      "residentialAverageMonthlyBillUsd": 166.48,
+      "allSectorSalesThousandMWh": 111899,
+      "allSectorRevenueMillionUsd": 25769,
+      "allSectorAveragePriceCentsPerKwh": 23.03
+    },
+    {
+      "key": "middle-atlantic",
+      "label": "Middle Atlantic",
+      "shortLabel": "Mid-Atl.",
+      "regionKey": "northeast",
+      "residentialCustomers": 16690432,
+      "residentialAverageMonthlyConsumptionKwh": 673,
+      "residentialAveragePriceCentsPerKwh": 20.63,
+      "residentialAverageMonthlyBillUsd": 138.85,
+      "allSectorSalesThousandMWh": 356175,
+      "allSectorRevenueMillionUsd": 57381,
+      "allSectorAveragePriceCentsPerKwh": 16.11
+    },
+    {
+      "key": "east-north-central",
+      "label": "East North Central",
+      "shortLabel": "E.N. Central",
+      "regionKey": "midwest",
+      "residentialCustomers": 20951042,
+      "residentialAverageMonthlyConsumptionKwh": 738,
+      "residentialAveragePriceCentsPerKwh": 16.48,
+      "residentialAverageMonthlyBillUsd": 121.66,
+      "allSectorSalesThousandMWh": 553436,
+      "allSectorRevenueMillionUsd": 67612,
+      "allSectorAveragePriceCentsPerKwh": 12.22
+    },
+    {
+      "key": "west-north-central",
+      "label": "West North Central",
+      "shortLabel": "W.N. Central",
+      "regionKey": "midwest",
+      "residentialCustomers": 10017809,
+      "residentialAverageMonthlyConsumptionKwh": 882,
+      "residentialAveragePriceCentsPerKwh": 13.47,
+      "residentialAverageMonthlyBillUsd": 118.81,
+      "allSectorSalesThousandMWh": 317125,
+      "allSectorRevenueMillionUsd": 33365,
+      "allSectorAveragePriceCentsPerKwh": 10.52
+    },
+    {
+      "key": "south-atlantic",
+      "label": "South Atlantic",
+      "shortLabel": "S. Atlantic",
+      "regionKey": "south",
+      "residentialCustomers": 30673496,
+      "residentialAverageMonthlyConsumptionKwh": 1048,
+      "residentialAveragePriceCentsPerKwh": 14.51,
+      "residentialAverageMonthlyBillUsd": 152.04,
+      "allSectorSalesThousandMWh": 877536,
+      "allSectorRevenueMillionUsd": 104582,
+      "allSectorAveragePriceCentsPerKwh": 11.92
+    },
+    {
+      "key": "east-south-central",
+      "label": "East South Central",
+      "shortLabel": "E.S. Central",
+      "regionKey": "south",
+      "residentialCustomers": 8981949,
+      "residentialAverageMonthlyConsumptionKwh": 1126,
+      "residentialAveragePriceCentsPerKwh": 13.4,
+      "residentialAverageMonthlyBillUsd": 150.89,
+      "allSectorSalesThousandMWh": 313576,
+      "allSectorRevenueMillionUsd": 34447,
+      "allSectorAveragePriceCentsPerKwh": 10.99
+    },
+    {
+      "key": "west-south-central",
+      "label": "West South Central",
+      "shortLabel": "W.S. Central",
+      "regionKey": "south",
+      "residentialCustomers": 18051370,
+      "residentialAverageMonthlyConsumptionKwh": 1103,
+      "residentialAveragePriceCentsPerKwh": 14.04,
+      "residentialAverageMonthlyBillUsd": 154.89,
+      "allSectorSalesThousandMWh": 722768,
+      "allSectorRevenueMillionUsd": 69211,
+      "allSectorAveragePriceCentsPerKwh": 9.58
+    },
+    {
+      "key": "mountain",
+      "label": "Mountain",
+      "shortLabel": "Mountain",
+      "regionKey": "west",
+      "residentialCustomers": 10925227,
+      "residentialAverageMonthlyConsumptionKwh": 865,
+      "residentialAveragePriceCentsPerKwh": 14.12,
+      "residentialAverageMonthlyBillUsd": 122.2,
+      "allSectorSalesThousandMWh": 312489,
+      "allSectorRevenueMillionUsd": 35102,
+      "allSectorAveragePriceCentsPerKwh": 11.23
+    },
+    {
+      "key": "pacific-contiguous",
+      "label": "Pacific Contiguous",
+      "shortLabel": "Pacific",
+      "regionKey": "west",
+      "residentialCustomers": 19454170,
+      "residentialAverageMonthlyConsumptionKwh": 618,
+      "residentialAveragePriceCentsPerKwh": 24.23,
+      "residentialAverageMonthlyBillUsd": 149.69,
+      "allSectorSalesThousandMWh": 395379,
+      "allSectorRevenueMillionUsd": 82184,
+      "allSectorAveragePriceCentsPerKwh": 20.79
+    },
+    {
+      "key": "pacific-noncontiguous",
+      "label": "Pacific Noncontiguous",
+      "shortLabel": "AK/HI",
+      "regionKey": "west",
+      "residentialCustomers": 744909,
+      "residentialAverageMonthlyConsumptionKwh": 528,
+      "residentialAveragePriceCentsPerKwh": 34.95,
+      "residentialAverageMonthlyBillUsd": 184.65,
+      "allSectorSalesThousandMWh": 14999,
+      "allSectorRevenueMillionUsd": 4742,
+      "allSectorAveragePriceCentsPerKwh": 31.62
+    }
+  ],
+  "usTotal": {
+    "residentialCustomers": 143144185,
+    "residentialAverageMonthlyConsumptionKwh": 863,
+    "residentialAveragePriceCentsPerKwh": 16.48,
+    "residentialAverageMonthlyBillUsd": 142.26,
+    "allSectorSalesThousandMWh": 3975382,
+    "allSectorRevenueMillionUsd": 514396,
+    "allSectorAveragePriceCentsPerKwh": 12.94
+  }
+}

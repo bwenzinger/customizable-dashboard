@@ -16,12 +16,15 @@ import {
   Switch,
   Typography,
 } from '@mui/material';
+import {
+  buildDemoElectricityChartItem,
+  getDemoElectricityRegionFilterOptions,
+  normalizeDemoLayoutWithElectricityCharts,
+} from './demoElectricityData';
 import { ExampleDashboardCard } from './ExampleDashboardCard';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
 import { getRequiredRowCount } from './drag-and-droppable-grid/gridMath';
 import type {
-  DraggableGridChartPoint,
-  DraggableGridChartType,
   DraggableGridItem,
   DraggableGridItemKind,
 } from './drag-and-droppable-grid/types';
@@ -86,9 +89,9 @@ const addItemOptions: AddItemOption[] = [
   {
     id: 'chart',
     label: 'Chart',
-    description: 'Add a simple trend chart card.',
-    buildItem: (nextItemNumber, currentLayout) =>
-      buildRandomChartDashboardItem(currentLayout, nextItemNumber),
+    description: 'Add an electricity chart backed by official 2024 EIA data.',
+    buildItem: (_nextItemNumber, currentLayout) =>
+      buildDemoElectricityChartItem(currentLayout),
   },
   {
     id: 'filter',
@@ -96,10 +99,10 @@ const addItemOptions: AddItemOption[] = [
     description: 'Add a URL-driven dropdown filter.',
     buildItem: (nextItemNumber) => ({
       kind: 'filter',
-      title: `Filter ${nextItemNumber}`,
+      title: nextItemNumber === 1 ? 'Region' : `Region ${nextItemNumber}`,
       filterParamName: 'region',
-      filterOptions: ['North America', 'Europe', 'APAC'],
-      filterValue: 'North America',
+      filterOptions: getDemoElectricityRegionFilterOptions(),
+      filterValue: getDemoElectricityRegionFilterOptions()[0],
       width: 3,
       height: 1,
       minWidth: 2,
@@ -335,7 +338,9 @@ function App() {
 
       setActiveDashboardId(selectedDashboard.id);
       setActiveDashboardName(selectedDashboard.name);
-      setLayout(selectedDashboard.layout);
+      setLayout(
+        normalizeDemoLayoutWithElectricityCharts(selectedDashboard.layout)
+      );
       setSaveStatus(`Loaded "${selectedDashboard.name}"`);
       handleCloseAddMenu();
     },
@@ -410,6 +415,7 @@ function App() {
   ]);
 
   const handleSaveLayout = useCallback(() => {
+    const normalizedLayout = normalizeDemoLayoutWithElectricityCharts(layout);
     const resolvedDashboardName = getUniqueDashboardName(
       activeDashboardName,
       savedDashboards,
@@ -422,7 +428,7 @@ function App() {
         const nextDashboard: DemoSavedDashboard = {
           id: createDemoDashboardId(),
           name: resolvedDashboardName,
-          layout,
+          layout: normalizedLayout,
           updatedAt,
         };
         const nextDashboards = [...savedDashboards, nextDashboard];
@@ -440,7 +446,7 @@ function App() {
           ? {
               ...dashboard,
               name: resolvedDashboardName,
-              layout,
+              layout: normalizedLayout,
               updatedAt,
             }
           : dashboard
@@ -462,6 +468,7 @@ function App() {
   ]);
 
   const handleSaveLayoutAsCopy = useCallback(() => {
+    const normalizedLayout = normalizeDemoLayoutWithElectricityCharts(layout);
     const copiedDashboardName = getUniqueDashboardName(
       activeDashboardName || 'Dashboard copy',
       savedDashboards
@@ -469,7 +476,7 @@ function App() {
     const nextDashboard: DemoSavedDashboard = {
       id: createDemoDashboardId(),
       name: copiedDashboardName,
-      layout,
+      layout: normalizedLayout,
       updatedAt: new Date().toISOString(),
     };
 
@@ -821,339 +828,6 @@ function App() {
 
 export default App;
 
-function buildRandomChartDashboardItem(
-  currentLayout: DraggableGridItem[],
-  nextItemNumber: number
-): Omit<DraggableGridItem, 'id' | 'row' | 'column'> {
-  const chartType = getNextChartTypeForLayout(currentLayout);
-
-  switch (chartType) {
-    case 'line':
-      return buildRandomLineChartDashboardItem();
-    case 'scatter':
-      return buildRandomScatterChartDashboardItem();
-    case 'pie':
-      return buildRandomPieChartDashboardItem();
-    case 'column':
-    default:
-      return buildRandomColumnChartDashboardItem(nextItemNumber);
-  }
-}
-
-function getNextChartTypeForLayout(
-  currentLayout: DraggableGridItem[]
-): DraggableGridChartType {
-  const allChartTypes: DraggableGridChartType[] = [
-    'line',
-    'scatter',
-    'pie',
-    'column',
-  ];
-  const chartTypeCounts = allChartTypes.reduce<Record<DraggableGridChartType, number>>(
-    (result, chartType) => ({
-      ...result,
-      [chartType]: 0,
-    }),
-    {
-      line: 0,
-      scatter: 0,
-      pie: 0,
-      column: 0,
-    }
-  );
-
-  currentLayout.forEach((item) => {
-    if (item.kind === 'chart' && item.chartType) {
-      chartTypeCounts[item.chartType] += 1;
-    }
-  });
-
-  const minimumCount = Math.min(...allChartTypes.map((chartType) => chartTypeCounts[chartType]));
-  const leastUsedChartTypes = allChartTypes.filter(
-    (chartType) => chartTypeCounts[chartType] === minimumCount
-  );
-
-  return getRandomItem(leastUsedChartTypes);
-}
-
-function buildRandomLineChartDashboardItem(): Omit<
-  DraggableGridItem,
-  'id' | 'row' | 'column'
-> {
-  const scenarios = [
-    {
-      title: 'Revenue trend',
-      description: 'Monthly recurring revenue',
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-      baseValues: [18200, 19400, 20350, 21750, 22600, 23900, 25400],
-      trendSuffix: 'vs last month',
-    },
-    {
-      title: 'Active users',
-      description: 'Daily active users this week',
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      baseValues: [840, 878, 905, 932, 961, 1008, 1056],
-      trendSuffix: 'week over week',
-    },
-    {
-      title: 'Avg. response time',
-      description: 'Median support response in minutes',
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
-      baseValues: [46, 44, 42, 39, 37, 34],
-      trendSuffix: 'vs prior period',
-    },
-  ] as const;
-  const scenario = getRandomItem(scenarios);
-  const values = varySeries(scenario.baseValues, 0.08);
-
-  return {
-    kind: 'chart',
-    chartType: 'line',
-    title: scenario.title,
-    description: scenario.description,
-    chartLabels: [...scenario.labels],
-    chartValues: values,
-    chartTrend: `${formatSignedPercent(getPercentChange(values.at(-1) ?? 0, values.at(-2) ?? 0))} ${scenario.trendSuffix}`,
-    width: 4,
-    height: 3,
-    minWidth: 3,
-    minHeight: 2,
-  };
-}
-
-function buildRandomColumnChartDashboardItem(
-  nextItemNumber: number
-): Omit<DraggableGridItem, 'id' | 'row' | 'column'> {
-  const scenarios = [
-    {
-      title: 'Bookings by region',
-      description: 'Quarter-to-date sales distribution',
-      labels: ['NA', 'EMEA', 'APAC', 'LATAM'],
-      baseValues: [126, 94, 71, 39],
-      topLabelSuffix: 'leads current bookings',
-    },
-    {
-      title: 'Tickets by queue',
-      description: 'Open support work this morning',
-      labels: ['Billing', 'Onboard', 'Reliability', 'Security'],
-      baseValues: [34, 22, 17, 9],
-      topLabelSuffix: 'is the busiest queue',
-    },
-    {
-      title: 'Feature adoption',
-      description: 'Usage by customer segment',
-      labels: ['Starter', 'Growth', 'Pro', 'Enterprise'],
-      baseValues: [41, 58, 74, 67],
-      topLabelSuffix: 'customers lead adoption',
-    },
-  ] as const;
-  const scenario = getRandomItem(scenarios);
-  const values = varySeries(scenario.baseValues, 0.12);
-  const topIndex = getIndexOfLargestValue(values);
-
-  return {
-    kind: 'chart',
-    chartType: 'column',
-    title: scenario.title || `Chart ${nextItemNumber}`,
-    description: scenario.description,
-    chartLabels: [...scenario.labels],
-    chartValues: values,
-    chartTrend: `${scenario.labels[topIndex]} ${scenario.topLabelSuffix}`,
-    width: 4,
-    height: 3,
-    minWidth: 3,
-    minHeight: 2,
-  };
-}
-
-function buildRandomPieChartDashboardItem(): Omit<
-  DraggableGridItem,
-  'id' | 'row' | 'column'
-> {
-  const scenarios = [
-    {
-      title: 'Traffic sources',
-      description: 'Share of sessions this week',
-      labels: ['Organic', 'Paid', 'Direct', 'Referral'],
-      baseValues: [42, 24, 19, 15],
-    },
-    {
-      title: 'Users by plan',
-      description: 'Active accounts by subscription',
-      labels: ['Free', 'Team', 'Business', 'Enterprise'],
-      baseValues: [49, 27, 16, 8],
-    },
-    {
-      title: 'Incidents by severity',
-      description: 'Closed incidents this month',
-      labels: ['Low', 'Medium', 'High', 'Critical'],
-      baseValues: [53, 26, 14, 7],
-    },
-  ] as const;
-  const scenario = getRandomItem(scenarios);
-  const values = rebalanceToHundred(varySeries(scenario.baseValues, 0.14));
-  const topIndex = getIndexOfLargestValue(values);
-
-  return {
-    kind: 'chart',
-    chartType: 'pie',
-    title: scenario.title,
-    description: scenario.description,
-    chartLabels: [...scenario.labels],
-    chartValues: values,
-    chartTrend: `${scenario.labels[topIndex]} accounts for ${values[topIndex]}% of the mix`,
-    width: 3,
-    height: 4,
-    minWidth: 2,
-    minHeight: 4,
-  };
-}
-
-function buildRandomScatterChartDashboardItem(): Omit<
-  DraggableGridItem,
-  'id' | 'row' | 'column'
-> {
-  const scenarios = [
-    {
-      title: 'Lead score vs deal size',
-      description: 'Qualified opportunities this month',
-      trend: 'Higher scoring leads are closing larger deals',
-      points: buildCorrelatedScatterPoints({
-        count: 14,
-        xMin: 28,
-        xMax: 96,
-        yBase: 18,
-        ySlope: 1.08,
-        yNoise: 14,
-      }),
-    },
-    {
-      title: 'Spend vs signups',
-      description: 'Campaign cohorts over the last 30 days',
-      trend: 'Higher spend cohorts trend toward more signups',
-      points: buildCorrelatedScatterPoints({
-        count: 14,
-        xMin: 4,
-        xMax: 48,
-        yBase: 26,
-        ySlope: 5.2,
-        yNoise: 18,
-      }),
-    },
-    {
-      title: 'Traffic vs latency',
-      description: 'API edge load sampled hourly',
-      trend: 'Heavier traffic clusters at higher latency',
-      points: buildCorrelatedScatterPoints({
-        count: 16,
-        xMin: 120,
-        xMax: 930,
-        yBase: 82,
-        ySlope: 0.11,
-        yNoise: 16,
-      }),
-    },
-  ] as const;
-  const scenario = getRandomItem(scenarios);
-
-  return {
-    kind: 'chart',
-    chartType: 'scatter',
-    title: scenario.title,
-    description: scenario.description,
-    chartTrend: scenario.trend,
-    chartPoints: scenario.points,
-    width: 4,
-    height: 3,
-    minWidth: 3,
-    minHeight: 3,
-  };
-}
-
-function buildCorrelatedScatterPoints(args: {
-  count: number;
-  xMin: number;
-  xMax: number;
-  yBase: number;
-  ySlope: number;
-  yNoise: number;
-}): DraggableGridChartPoint[] {
-  const { count, xMin, xMax, yBase, ySlope, yNoise } = args;
-  const step = (xMax - xMin) / Math.max(count - 1, 1);
-
-  return Array.from({ length: count }, (_, index) => {
-    const x = Math.round(xMin + step * index + randomBetween(-step * 0.18, step * 0.18));
-    const y = Math.max(
-      4,
-      Math.round(yBase + index * ySlope * step + randomBetween(-yNoise, yNoise))
-    );
-
-    return { x, y };
-  }).sort((left, right) => left.x - right.x);
-}
-
-function varySeries(values: readonly number[], variance: number): number[] {
-  return values.map((value) =>
-    Math.max(1, Math.round(value * (1 + randomBetween(-variance, variance))))
-  );
-}
-
-function rebalanceToHundred(values: readonly number[]): number[] {
-  const total = values.reduce((sum, value) => sum + value, 0);
-
-  if (total <= 0) {
-    return [25, 25, 25, 25];
-  }
-
-  const scaledValues = values.map((value) => Math.max(1, Math.round((value / total) * 100)));
-  const adjustedValues = [...scaledValues];
-  let difference = 100 - adjustedValues.reduce((sum, value) => sum + value, 0);
-
-  while (difference !== 0) {
-    const index = difference > 0 ? getIndexOfSmallestValue(adjustedValues) : getIndexOfLargestValue(adjustedValues);
-
-    adjustedValues[index] += difference > 0 ? 1 : -1;
-    difference += difference > 0 ? -1 : 1;
-  }
-
-  return adjustedValues;
-}
-
-function getPercentChange(currentValue: number, previousValue: number): number {
-  if (previousValue === 0) {
-    return 0;
-  }
-
-  return ((currentValue - previousValue) / previousValue) * 100;
-}
-
-function formatSignedPercent(value: number): string {
-  const roundedValue = Math.round(value);
-  const prefix = roundedValue > 0 ? '+' : '';
-
-  return `${prefix}${roundedValue}%`;
-}
-
-function getIndexOfLargestValue(values: readonly number[]): number {
-  return values.reduce((bestIndex, value, index, allValues) =>
-    value > allValues[bestIndex] ? index : bestIndex,
-  0);
-}
-
-function getIndexOfSmallestValue(values: readonly number[]): number {
-  return values.reduce((bestIndex, value, index, allValues) =>
-    value < allValues[bestIndex] ? index : bestIndex,
-  0);
-}
-
-function randomBetween(minValue: number, maxValue: number): number {
-  return minValue + Math.random() * (maxValue - minValue);
-}
-
-function getRandomItem<T>(items: readonly T[]): T {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
 function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
   const defaultDashboardName = getNextDashboardName([]);
   const fallbackState = {
@@ -1172,13 +846,16 @@ function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
       const parsedStore = JSON.parse(savedDashboardStore);
 
       if (isValidSavedDemoDashboardStore(parsedStore)) {
+        const normalizedDashboards = parsedStore.dashboards.map(
+          normalizeSavedDemoDashboard
+        );
         const activeDashboard =
-          parsedStore.dashboards.find(
+          normalizedDashboards.find(
             (dashboard) => dashboard.id === parsedStore.activeDashboardId
-          ) ?? parsedStore.dashboards[0];
+          ) ?? normalizedDashboards[0];
 
         return {
-          dashboards: parsedStore.dashboards,
+          dashboards: normalizedDashboards,
           activeDashboardId: activeDashboard?.id ?? null,
           activeDashboardName:
             activeDashboard?.name ?? defaultDashboardName,
@@ -1236,6 +913,15 @@ function isValidSavedDemoDashboardStore(
     (typeof value.activeDashboardId === 'string' ||
       value.activeDashboardId === null)
   );
+}
+
+function normalizeSavedDemoDashboard(
+  dashboard: DemoSavedDashboard
+): DemoSavedDashboard {
+  return {
+    ...dashboard,
+    layout: normalizeDemoLayoutWithElectricityCharts(dashboard.layout),
+  };
 }
 
 function getNextDashboardName(savedDashboards: DemoSavedDashboard[]): string {
