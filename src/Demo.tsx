@@ -194,6 +194,20 @@ function App() {
     [canEdit]
   );
 
+  const handleDeleteDashboardItem = useCallback(
+    (itemId: string) => {
+      if (!canEdit) {
+        return;
+      }
+
+      setLayout((currentLayout) =>
+        currentLayout.filter((item) => item.id !== itemId)
+      );
+      setSaveStatus(null);
+    },
+    [canEdit]
+  );
+
   const appendDashboardItem = useCallback(
     (
       buildItem: (nextItemNumber: number) => Omit<
@@ -696,6 +710,7 @@ function App() {
                 isDragging={isDragging}
                 isResizing={isResizing}
                 canEdit={canEdit}
+                onDeleteItem={handleDeleteDashboardItem}
                 onItemChanged={handleDashboardItemChanged}
               />
             )}

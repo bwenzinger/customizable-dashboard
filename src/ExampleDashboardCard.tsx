@@ -15,6 +15,7 @@ type DashboardCardProps = {
   isDragging: boolean;
   isResizing: boolean;
   canEdit: boolean;
+  onDeleteItem?: (itemId: string) => void;
   onItemChanged?: (
     itemId: string,
     updates: Partial<Omit<DraggableGridItem, 'id'>>
@@ -24,7 +25,8 @@ type DashboardCardProps = {
 export function ExampleDashboardCard(
   props: DashboardCardProps
 ): React.JSX.Element {
-  const { item, isDragging, isResizing, canEdit, onItemChanged } = props;
+  const { item, isDragging, isResizing, canEdit, onDeleteItem, onItemChanged } =
+    props;
   const theme = useTheme();
   const itemKind = item.kind ?? 'card';
   const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
@@ -64,11 +66,26 @@ export function ExampleDashboardCard(
           justifyContent: 'stretch',
           padding: 0,
         }}
-        component="img"
-        src={item.imageSrc}
-        alt={item.title ?? 'Dropped image'}
-        draggable={false}
-      ></Card>
+      >
+        {canEdit ? (
+          <DeleteDashboardCardButton
+            itemId={item.id}
+            onDeleteItem={onDeleteItem}
+          />
+        ) : null}
+        <Box
+          component="img"
+          src={item.imageSrc}
+          alt={item.title ?? 'Dropped image'}
+          draggable={false}
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'block',
+            objectFit: 'cover',
+          }}
+        />
+      </Card>
     );
   }
 
@@ -86,6 +103,12 @@ export function ExampleDashboardCard(
           display: 'flex',
         }}
       >
+        {canEdit ? (
+          <DeleteDashboardCardButton
+            itemId={item.id}
+            onDeleteItem={onDeleteItem}
+          />
+        ) : null}
         <CardContent
           sx={{
             display: 'flex',
@@ -132,6 +155,12 @@ export function ExampleDashboardCard(
         display: 'flex',
       }}
     >
+      {canEdit ? (
+        <DeleteDashboardCardButton
+          itemId={item.id}
+          onDeleteItem={onDeleteItem}
+        />
+      ) : null}
       <CardContent
         sx={{
           display: 'flex',
@@ -464,6 +493,65 @@ function getWidgetAccentColor(kind: NonNullable<DraggableGridItem['kind']>) {
   };
 
   return colors[kind];
+}
+
+function DeleteDashboardCardButton({
+  itemId,
+  onDeleteItem,
+}: {
+  itemId: string;
+  onDeleteItem?: (itemId: string) => void;
+}) {
+  if (!onDeleteItem) {
+    return null;
+  }
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      aria-label="Delete card"
+      data-draggable-grid-no-drag="true"
+      onMouseDown={(event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onDeleteItem(itemId);
+      }}
+      sx={(theme) => ({
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        zIndex: 3,
+        width: 24,
+        height: 24,
+        border: `1px solid ${alpha(theme.palette.error.main, 0.16)}`,
+        borderRadius: 999,
+        backgroundColor: alpha(theme.palette.common.white, 0.92),
+        color: alpha(theme.palette.error.dark, 0.92),
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: '0.92rem',
+        fontWeight: 700,
+        lineHeight: 1,
+        cursor: 'pointer',
+        boxShadow: '0px 4px 12px rgba(15, 23, 42, 0.10)',
+        transition:
+          'background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease',
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.error.main, 0.08),
+          borderColor: alpha(theme.palette.error.main, 0.28),
+          color: theme.palette.error.main,
+          transform: 'scale(1.04)',
+        },
+      })}
+    >
+      ×
+    </Box>
+  );
 }
 
 type DashboardCardChipProps = {
