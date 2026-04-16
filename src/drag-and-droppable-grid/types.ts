@@ -27,6 +27,7 @@ export type DraggableGridItemKind =
   | 'card'
   | 'button'
   | 'chart'
+  | 'filter'
   | 'richText'
   | 'image'
   | 'metric';
@@ -74,6 +75,9 @@ export type DraggableGridItem = {
   chartValues?: number[];
   chartLabels?: string[];
   chartPoints?: DraggableGridChartPoint[];
+  filterParamName?: string;
+  filterOptions?: string[];
+  filterValue?: string;
   metricLabel?: string;
   metricValue?: string;
   metricTrend?: string;

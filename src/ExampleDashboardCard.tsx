@@ -12,6 +12,7 @@ import type {
   DraggableGridChartType,
   DraggableGridItem,
 } from './drag-and-droppable-grid/types';
+import { FilterDashboardItem } from './FilterDashboardItem';
 import { RichTextDashboardItem } from './RichTextDashboardItem';
 
 type DashboardCardProps = {
@@ -395,6 +396,17 @@ function DashboardWidgetBody({
           onItemChanged={onItemChanged}
         />
       </Box>
+    );
+  }
+
+  if (item.kind === 'filter') {
+    return (
+      <FilterDashboardItem
+        item={item}
+        canEdit={canEdit}
+        isSingleRowCard={isSingleRowCard}
+        onItemChanged={onItemChanged}
+      />
     );
   }
 
@@ -1129,6 +1141,7 @@ function getWidgetInitial(kind: NonNullable<DraggableGridItem['kind']>) {
     button: 'B',
     card: 'C',
     chart: 'G',
+    filter: 'F',
     image: 'I',
     metric: 'M',
     richText: 'T',
@@ -1153,6 +1166,10 @@ function getWidgetAccentColor(kind: NonNullable<DraggableGridItem['kind']>) {
     chart: {
       background: 'rgba(13, 148, 136, 0.12)',
       text: '#0f766e',
+    },
+    filter: {
+      background: 'rgba(234, 88, 12, 0.12)',
+      text: '#c2410c',
     },
     image: {
       background: 'rgba(244, 114, 182, 0.14)',

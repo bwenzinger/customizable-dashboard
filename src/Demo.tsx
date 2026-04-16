@@ -91,6 +91,22 @@ const addItemOptions: AddItemOption[] = [
       buildRandomChartDashboardItem(currentLayout, nextItemNumber),
   },
   {
+    id: 'filter',
+    label: 'Filter',
+    description: 'Add a URL-driven dropdown filter.',
+    buildItem: (nextItemNumber) => ({
+      kind: 'filter',
+      title: `Filter ${nextItemNumber}`,
+      filterParamName: 'region',
+      filterOptions: ['North America', 'Europe', 'APAC'],
+      filterValue: 'North America',
+      width: 3,
+      height: 2,
+      minWidth: 2,
+      minHeight: 2,
+    }),
+  },
+  {
     id: 'richText',
     label: 'Rich Text',
     description: 'Add notes, context, or instructions.',
@@ -335,6 +351,64 @@ function App() {
     handleCloseAddMenu();
   }, [handleCloseAddMenu, savedDashboards]);
 
+  const handleDeleteDashboard = useCallback(() => {
+    if (!activeDashboardId) {
+      return;
+    }
+
+    const dashboardToDelete = savedDashboards.find(
+      (dashboard) => dashboard.id === activeDashboardId
+    );
+
+    if (!dashboardToDelete) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(
+      `Delete "${dashboardToDelete.name}"? This cannot be undone.`
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    const remainingDashboards = savedDashboards.filter(
+      (dashboard) => dashboard.id !== activeDashboardId
+    );
+    const nextActiveDashboard = remainingDashboards[0] ?? null;
+
+    try {
+      persistDashboardStore(
+        remainingDashboards,
+        nextActiveDashboard?.id ?? null
+      );
+      setSavedDashboards(remainingDashboards);
+
+      if (nextActiveDashboard) {
+        setActiveDashboardId(nextActiveDashboard.id);
+        setActiveDashboardName(nextActiveDashboard.name);
+        setLayout(nextActiveDashboard.layout);
+        setSaveStatus(
+          `Deleted "${dashboardToDelete.name}" and loaded "${nextActiveDashboard.name}"`
+        );
+      } else {
+        setActiveDashboardId(null);
+        setActiveDashboardName(getNextDashboardName([]));
+        setLayout(emptyDashboardLayout);
+        setSaveStatus(`Deleted "${dashboardToDelete.name}"`);
+      }
+
+      handleCloseAddMenu();
+    } catch {
+      setSaveStatus('Could not delete dashboard');
+    }
+  }, [
+    activeDashboardId,
+    handleCloseAddMenu,
+    persistDashboardStore,
+    savedDashboards,
+  ]);
+
   const handleSaveLayout = useCallback(() => {
     const resolvedDashboardName = getUniqueDashboardName(
       activeDashboardName,
@@ -567,6 +641,15 @@ function App() {
               sx={dashboardToolbarButtonSx}
             >
               New
+            </Button>
+            <Button
+              variant="text"
+              color="error"
+              onClick={handleDeleteDashboard}
+              disabled={!activeDashboardId}
+              sx={dashboardToolbarButtonSx}
+            >
+              Delete
             </Button>
           </Box>
 

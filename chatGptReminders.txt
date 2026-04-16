@@ -33,9 +33,10 @@ Draggable grid behavior preferences:
 - Per-card edit overlays should avoid tint washes over content or controls; prefer border-only cues if overlays start coloring demo UI like delete buttons.
 - The demo should include an edit-mode toggle that drives `canEdit`; when viewing/read-only, external demo controls like Add Item should not mutate the layout.
 - Starting a brand new dashboard via `New` should automatically switch the demo back into edit mode so the empty draft is immediately editable.
-- The demo should support multiple named dashboards in localStorage, with controls to create a new draft, save/update the active dashboard, save a copy, and switch which saved dashboard is currently displayed.
+- The demo should support multiple named dashboards in localStorage, with controls to create a new draft, save/update the active dashboard, save a copy, delete the currently selected saved dashboard, and switch which saved dashboard is currently displayed.
 - The demo storage can target only the current multi-dashboard localStorage format; no legacy single-layout migration path is needed.
 - New dashboards and the default unsaved draft should start empty rather than with seeded sample cards.
+- Deleting a saved dashboard from the demo should be a confirmed action; after deletion, load another saved dashboard if one exists, otherwise fall back to an empty unsaved draft.
 - The demo should feel more like a simple app shell than a floating playground: use a clean toolbar above the grid for dashboard selection, naming, save actions, add-item actions, and edit mode, while keeping the dashboard canvas visually plain below it.
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
@@ -43,7 +44,8 @@ Draggable grid behavior preferences:
 - In 1x1 cards, prioritize keeping the title visible; hide chips or other secondary metadata before truncating the name.
 - In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
 - Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
-- The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, charts, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
+- The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, charts, filters, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
+- Filter dashboard items should be configurable inline in edit mode with a display name, URL param name, and dropdown options; selecting a filter value should update the browser URL search params without reloading the page.
 - Demo chart items should randomize between line, scatter, pie, and column charts at creation time, with realistic sample data stored on the item itself so saved dashboards keep the same chart contents and multiple chart cards feel varied. Prefer random selection among the least-used chart types already on the dashboard so new charts do not cluster too heavily into one type.
 - Chart cards should use sensible per-type defaults: line/column/scatter should start larger (around 4x3 with practical minimums), while pie charts can stay more compact; chart previews should use the available card area well and column charts should read like conventional bar/column charts rather than decorative pills.
 - Chart card headers should vertically center the title text with the colored chart badge so the title row feels aligned and tidy.
