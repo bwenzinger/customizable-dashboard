@@ -113,7 +113,6 @@ const addItemOptions: AddItemOption[] = [
 
 const demoDashboardStoreStorageKey =
   'customizable-dashboard.demo.dashboards';
-const legacyDemoLayoutStorageKey = 'customizable-dashboard.demo.layout';
 const dashboardToolbarFieldSx = {
   height: 40,
   border: '1px solid rgba(15, 23, 42, 0.12)',
@@ -753,6 +752,12 @@ export default App;
 
 function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
   const defaultDashboardName = getNextDashboardName([]);
+  const fallbackState = {
+    dashboards: [],
+    activeDashboardId: null,
+    activeDashboardName: defaultDashboardName,
+    activeLayout: initialLayout,
+  } satisfies DemoDashboardBootstrapState;
 
   try {
     const savedDashboardStore = localStorage.getItem(
@@ -777,56 +782,11 @@ function getSavedDemoDashboardState(): DemoDashboardBootstrapState {
         };
       }
     }
-
-    const legacySavedLayout = localStorage.getItem(legacyDemoLayoutStorageKey);
-
-    if (legacySavedLayout) {
-      const parsedLegacyLayout = JSON.parse(legacySavedLayout);
-
-      if (isValidSavedDemoLayout(parsedLegacyLayout)) {
-        const migratedDashboard: DemoSavedDashboard = {
-          id: 'demo-dashboard-legacy',
-          name: 'Saved Dashboard',
-          layout: parsedLegacyLayout,
-          updatedAt: new Date(0).toISOString(),
-        };
-
-        return {
-          dashboards: [migratedDashboard],
-          activeDashboardId: migratedDashboard.id,
-          activeDashboardName: migratedDashboard.name,
-          activeLayout: migratedDashboard.layout,
-        };
-      }
-    }
   } catch {
-    return {
-      dashboards: [],
-      activeDashboardId: null,
-      activeDashboardName: defaultDashboardName,
-      activeLayout: initialLayout,
-    };
+    return fallbackState;
   }
 
-  return {
-    dashboards: [],
-    activeDashboardId: null,
-    activeDashboardName: defaultDashboardName,
-    activeLayout: initialLayout,
-  };
-}
-
-function isValidSavedDemoLayout(value: unknown): value is DraggableGridItem[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item) =>
-        typeof item === 'object' &&
-        item !== null &&
-        'id' in item &&
-        typeof item.id === 'string'
-    )
-  );
+  return fallbackState;
 }
 
 function isValidSavedDemoDashboard(
@@ -840,9 +800,22 @@ function isValidSavedDemoDashboard(
     'name' in value &&
     typeof value.name === 'string' &&
     'layout' in value &&
-    isValidSavedDemoLayout(value.layout) &&
+    isValidDemoDashboardLayout(value.layout) &&
     'updatedAt' in value &&
     typeof value.updatedAt === 'string'
+  );
+}
+
+function isValidDemoDashboardLayout(value: unknown): value is DraggableGridItem[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        'id' in item &&
+        typeof item.id === 'string'
+    )
   );
 }
 

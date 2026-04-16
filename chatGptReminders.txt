@@ -30,6 +30,7 @@ Draggable grid behavior preferences:
 - When `canEdit` is false, disable drag/drop edits, hide resize handles, hide Collapse/Optimize/Undo controls, hide the bottom row-resize handle, and disable Ctrl/Cmd+Z undo.
 - The demo should include an edit-mode toggle that drives `canEdit`; when viewing/read-only, external demo controls like Add Item should not mutate the layout.
 - The demo should support multiple named dashboards in localStorage, with controls to create a new draft, save/update the active dashboard, save a copy, and switch which saved dashboard is currently displayed.
+- The demo storage can target only the current multi-dashboard localStorage format; no legacy single-layout migration path is needed.
 - The demo should feel more like a simple app shell than a floating playground: use a clean toolbar above the grid for dashboard selection, naming, save actions, add-item actions, and edit mode, while keeping the dashboard canvas visually plain below it.
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
