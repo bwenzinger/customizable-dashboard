@@ -1,17 +1,30 @@
 import {
   useMemo,
+  useState,
   useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
-import { Box, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  MenuItem,
+  Stack,
+  TextField,
+} from '@mui/material';
 import type { DraggableGridItem } from './drag-and-droppable-grid/types';
 
 const urlParamsChangedEventName = 'demo-dashboard-url-params-changed';
 
 type FilterDashboardItemProps = {
   item: DraggableGridItem;
-  canEdit: boolean;
   isSingleRowCard: boolean;
+  isEditorOpen: boolean;
+  onEditorClose: () => void;
   onItemChanged?: (
     itemId: string,
     updates: Partial<Omit<DraggableGridItem, 'id'>>
@@ -20,8 +33,9 @@ type FilterDashboardItemProps = {
 
 export function FilterDashboardItem({
   item,
-  canEdit,
   isSingleRowCard,
+  isEditorOpen,
+  onEditorClose,
   onItemChanged,
 }: FilterDashboardItemProps): React.JSX.Element {
   const filterParamName = item.filterParamName?.trim() ?? '';
@@ -34,59 +48,21 @@ export function FilterDashboardItem({
     getUrlSearchSnapshot,
     () => ''
   );
-  const optionsText = filterOptions.join(', ');
   const selectedValue = getResolvedFilterValue(
     filterParamName,
     filterOptions,
     item.filterValue,
     urlSearch
   );
-
-  const handleNameChanged = (event: ChangeEvent<HTMLInputElement>) => {
-    onItemChanged?.(item.id, {
-      title: event.currentTarget.value,
-    });
-  };
-
-  const handleParamNameChanged = (event: ChangeEvent<HTMLInputElement>) => {
-    onItemChanged?.(item.id, {
-      filterParamName: event.currentTarget.value,
-    });
-  };
-
-  const handleOptionsChanged = (
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const nextOptionsText = event.currentTarget.value;
-    const nextOptions = getNormalizedFilterOptions(
-      nextOptionsText.split(/[\n,]/g)
-    );
-    const nextSelectedValue = getResolvedFilterValue(
-      filterParamName,
-      nextOptions,
-      selectedValue || item.filterValue,
-      urlSearch
-    );
-    const currentUrlValue = getUrlParamValue(filterParamName, urlSearch);
-
-    onItemChanged?.(item.id, {
-      filterOptions: nextOptions,
-      filterValue: nextSelectedValue,
-    });
-
-    if (
-      filterParamName &&
-      currentUrlValue !== null &&
-      currentUrlValue !== nextSelectedValue
-    ) {
-      writeUrlParamValue(filterParamName, nextSelectedValue);
-    }
-  };
+  const selectValue =
+    selectedValue && filterOptions.includes(selectedValue)
+      ? selectedValue
+      : filterOptions[0] ?? '';
 
   const handleFilterValueChanged = (
-    event: ChangeEvent<HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const nextValue = event.currentTarget.value;
+    const nextValue = event.target.value;
 
     writeUrlParamValue(filterParamName, nextValue);
     onItemChanged?.(item.id, {
@@ -94,228 +70,227 @@ export function FilterDashboardItem({
     });
   };
 
-  const selectValue =
-    selectedValue && filterOptions.includes(selectedValue)
-      ? selectedValue
-      : filterOptions[0] ?? '';
-
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flex: 1,
-        flexDirection: 'column',
-        gap: isSingleRowCard ? 0.85 : 1,
-        minHeight: 0,
-        minWidth: 0,
-      }}
-    >
-      {canEdit ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 0.85,
-            gridTemplateColumns: isSingleRowCard
-              ? '1fr'
-              : 'repeat(2, minmax(0, 1fr))',
-            minWidth: 0,
-          }}
-        >
-          <FilterField label="Name">
-            <FilterTextInput
-              aria-label="Filter name"
-              value={item.title ?? ''}
-              onChange={handleNameChanged}
-              placeholder="Region filter"
-            />
-          </FilterField>
-          <FilterField label="URL Param">
-            <FilterTextInput
-              aria-label="Filter URL parameter"
-              value={item.filterParamName ?? ''}
-              onChange={handleParamNameChanged}
-              placeholder="region"
-            />
-          </FilterField>
-          <Box sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
-            <FilterField label="Options">
-              <FilterTextArea
-                aria-label="Filter options"
-                value={optionsText}
-                onChange={handleOptionsChanged}
-                placeholder="North America, Europe, APAC"
-                rows={isSingleRowCard ? 1 : 2}
-              />
-            </FilterField>
-          </Box>
-        </Box>
-      ) : (
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            fontSize: '0.74rem',
-            fontWeight: 700,
-            lineHeight: 1.2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {filterParamName
-            ? ``
-            : 'No URL parameter configured'}
-        </Typography>
-      )}
-
-      <Box
+    <>
+      <Stack
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 0.45,
+          flex: 1,
+          justifyContent: 'center',
+          gap: isSingleRowCard ? 0.75 : 0.85,
+          minHeight: 0,
           minWidth: 0,
         }}
       >
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            fontSize: '0.64rem',
-            fontWeight: 800,
-            letterSpacing: '0.06em',
-            lineHeight: 1,
-            textTransform: 'uppercase',
-          }}
-        >
-          Filter Value
-        </Typography>
-        <FilterSelectInput
-          aria-label="Filter value"
-          value={selectValue}
-          onChange={handleFilterValueChanged}
-          disabled={filterOptions.length === 0}
-        >
-          {filterOptions.length === 0 ? (
-            <option value="">Add options first</option>
-          ) : (
-            filterOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))
-          )}
-        </FilterSelectInput>
-      </Box>
-    </Box>
+        <FilterNoDragBox sx={{ minWidth: 0 }}>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Value"
+            value={selectValue}
+            onChange={handleFilterValueChanged}
+            disabled={filterOptions.length === 0}
+            variant="outlined"
+            slotProps={{
+              inputLabel: {
+                shrink: true,
+              },
+            }}
+            sx={{
+              '& .MuiInputBase-root': {
+                borderRadius: 3,
+                bgcolor: 'background.paper',
+              },
+            }}
+          >
+            {filterOptions.length === 0 ? (
+              <MenuItem value="">Configure options</MenuItem>
+            ) : (
+              filterOptions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))
+            )}
+          </TextField>
+        </FilterNoDragBox>
+      </Stack>
+
+      {isEditorOpen ? (
+        <FilterEditorDialog
+          key={`${item.id}:${item.title ?? ''}:${item.filterParamName ?? ''}:${filterOptions.join('|')}`}
+          item={item}
+          filterOptions={filterOptions}
+          currentFilterParamName={filterParamName}
+          selectedValue={selectedValue || item.filterValue}
+          onClose={onEditorClose}
+          onItemChanged={onItemChanged}
+        />
+      ) : null}
+    </>
   );
 }
 
-function FilterField({
-  label,
+function FilterNoDragBox({
   children,
+  sx,
 }: {
-  label: string;
   children: React.ReactNode;
+  sx?: Record<string, unknown>;
 }) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0.35,
-        minWidth: 0,
-      }}
-    >
-      <Typography
-        sx={{
-          color: 'text.secondary',
-          fontSize: '0.62rem',
-          fontWeight: 800,
-          letterSpacing: '0.08em',
-          lineHeight: 1,
-          textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </Typography>
+    <Box data-draggable-grid-no-drag="true" sx={sx}>
       {children}
     </Box>
   );
 }
 
-function FilterTextInput(
-  props: React.ComponentProps<'input'>
-): React.JSX.Element {
-  return (
-    <Box
-      component="input"
-      data-draggable-grid-no-drag="true"
-      spellCheck={false}
-      {...props}
-      sx={filterInputSx}
-    />
-  );
-}
+type FilterEditorDialogProps = {
+  item: DraggableGridItem;
+  filterOptions: string[];
+  currentFilterParamName: string;
+  selectedValue?: string;
+  onClose: () => void;
+  onItemChanged?: (
+    itemId: string,
+    updates: Partial<Omit<DraggableGridItem, 'id'>>
+  ) => void;
+};
 
-function FilterTextArea(
-  props: React.ComponentProps<'textarea'>
-): React.JSX.Element {
+type FilterEditorDraft = {
+  filterParamName: string;
+  filterOptionsText: string;
+};
+
+function FilterEditorDialog({
+  item,
+  filterOptions,
+  currentFilterParamName,
+  selectedValue,
+  onClose,
+  onItemChanged,
+}: FilterEditorDialogProps) {
+  const [editorDraft, setEditorDraft] = useState<FilterEditorDraft>(() =>
+    createFilterEditorDraft(item, filterOptions)
+  );
+
+  const handleEditorFieldChanged = (
+    field: keyof FilterEditorDraft,
+    value: string
+  ) => {
+    setEditorDraft((currentDraft) => ({
+      ...currentDraft,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveEditor = () => {
+    const nextParamName = editorDraft.filterParamName.trim();
+    const nextOptions = getNormalizedFilterOptions(
+      editorDraft.filterOptionsText.split(/[\n,]/g)
+    );
+    const nextSelectedValue = getPreferredFilterValue(
+      nextOptions,
+      selectedValue
+    );
+
+    onItemChanged?.(item.id, {
+      filterParamName: nextParamName,
+      filterOptions: nextOptions,
+      filterValue: nextSelectedValue,
+    });
+
+    writeRenamedUrlParamValue(
+      currentFilterParamName,
+      nextParamName,
+      nextSelectedValue
+    );
+    onClose();
+  };
+
   return (
-    <Box
-      component="textarea"
-      data-draggable-grid-no-drag="true"
-      spellCheck={false}
-      {...props}
-      sx={{
-        ...filterInputSx,
-        resize: 'vertical',
-        minHeight: 54,
-        py: 0.9,
-        whiteSpace: 'pre-wrap',
+    <Dialog
+      open={true}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 7,
+        },
       }}
-    />
+    >
+      <DialogTitle sx={{ pb: 1 }}>Edit Filter</DialogTitle>
+      <DialogContent
+        sx={{
+          display: 'grid',
+          gap: 2,
+          pt: 0.5,
+        }}
+      >
+        <DialogContentText sx={{ color: 'text.secondary' }}>
+          Configure the URL search parameter this filter controls and the list
+          of allowed values.
+        </DialogContentText>
+
+        <FilterNoDragBox>
+          <TextField
+            fullWidth
+            autoFocus
+            label="URL Parameter"
+            placeholder="region"
+            value={editorDraft.filterParamName}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              handleEditorFieldChanged(
+                'filterParamName',
+                event.currentTarget.value
+              );
+            }}
+            helperText="This becomes the key in the browser URL, like ?region=APAC."
+          />
+        </FilterNoDragBox>
+
+        <FilterNoDragBox>
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            label="Filter Options"
+            placeholder="North America, Europe, APAC"
+            value={editorDraft.filterOptionsText}
+            onChange={(
+              event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+            ) => {
+              handleEditorFieldChanged(
+                'filterOptionsText',
+                event.currentTarget.value
+              );
+            }}
+            helperText="Separate values with commas or new lines."
+          />
+        </FilterNoDragBox>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        <Button onClick={handleSaveEditor} variant="contained">
+          Save Filter
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
-function FilterSelectInput(
-  props: React.ComponentProps<'select'>
-): React.JSX.Element {
-  return (
-    <Box
-      component="select"
-      data-draggable-grid-no-drag="true"
-      {...props}
-      sx={{
-        ...filterInputSx,
-        cursor: props.disabled ? 'not-allowed' : 'pointer',
-        pr: 4,
-      }}
-    />
-  );
+function createFilterEditorDraft(
+  item: DraggableGridItem,
+  filterOptions: string[]
+): FilterEditorDraft {
+  return {
+    filterParamName: item.filterParamName ?? '',
+    filterOptionsText: filterOptions.join(', '),
+  };
 }
-
-const filterInputSx = {
-  width: '100%',
-  minWidth: 0,
-  border: '1px solid rgba(15, 23, 42, 0.12)',
-  borderRadius: 1.5,
-  backgroundColor: '#ffffff',
-  color: 'text.primary',
-  fontSize: '0.78rem',
-  fontWeight: 600,
-  lineHeight: 1.4,
-  outline: 'none',
-  boxSizing: 'border-box',
-  px: 1.1,
-  py: 0.75,
-  fontFamily: 'inherit',
-  '&:focus': {
-    borderColor: 'rgba(37, 99, 235, 0.34)',
-    boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.10)',
-  },
-  '&:disabled': {
-    backgroundColor: 'rgba(15, 23, 42, 0.04)',
-    color: 'text.secondary',
-  },
-} as const;
 
 function getNormalizedFilterOptions(values?: string[]): string[] {
   if (!values) {
@@ -351,14 +326,24 @@ function getResolvedFilterValue(
     return urlValue;
   }
 
-  if (persistedValue && options.includes(persistedValue)) {
-    return persistedValue;
+  return getPreferredFilterValue(options, persistedValue);
+}
+
+function getPreferredFilterValue(
+  options: string[],
+  preferredValue?: string
+): string {
+  if (preferredValue && options.includes(preferredValue)) {
+    return preferredValue;
   }
 
   return options[0] ?? '';
 }
 
-function getUrlParamValue(paramName: string, search = getUrlSearchSnapshot()): string | null {
+function getUrlParamValue(
+  paramName: string,
+  search = getUrlSearchSnapshot()
+): string | null {
   if (!paramName) {
     return null;
   }
@@ -379,6 +364,38 @@ function writeUrlParamValue(paramName: string, value: string) {
     nextUrl.searchParams.delete(paramName);
   }
 
+  commitUrlChange(nextUrl);
+}
+
+function writeRenamedUrlParamValue(
+  previousParamName: string,
+  nextParamName: string,
+  nextValue: string
+) {
+  if (!previousParamName && !nextParamName) {
+    return;
+  }
+
+  const nextUrl = new URL(window.location.href);
+
+  if (previousParamName && previousParamName !== nextParamName) {
+    nextUrl.searchParams.delete(previousParamName);
+  }
+
+  if (nextParamName) {
+    if (nextValue) {
+      nextUrl.searchParams.set(nextParamName, nextValue);
+    } else {
+      nextUrl.searchParams.delete(nextParamName);
+    }
+  } else if (previousParamName) {
+    nextUrl.searchParams.delete(previousParamName);
+  }
+
+  commitUrlChange(nextUrl);
+}
+
+function commitUrlChange(nextUrl: URL) {
   window.history.replaceState(
     window.history.state,
     '',

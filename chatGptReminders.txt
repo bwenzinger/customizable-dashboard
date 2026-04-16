@@ -43,9 +43,12 @@ Draggable grid behavior preferences:
 - For standard cards, prefer a simple title plus compact max-size and current-size chips over dense metadata blocks.
 - In 1x1 cards, prioritize keeping the title visible; hide chips or other secondary metadata before truncating the name.
 - In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
+- Card titles across the demo should be editable inline in a Material-feeling way: clicking the title should swap it into a compact MUI text field, save on blur/Enter, and cancel on Escape.
 - Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
 - The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, charts, filters, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
-- Filter dashboard items should be configurable inline in edit mode with a display name, URL param name, and dropdown options; selecting a filter value should update the browser URL search params without reloading the page.
+- Filter dashboard items should keep the tile body compact and move configuration into an edit modal; in edit mode the card can expose a small Edit action, while the modal handles only filter-specific settings like URL param name and dropdown options, since the card title itself is edited inline. Avoid redundant filter metadata in the card body like URL-param chips, option-count chips, or extra explanatory text when the title and select already communicate the purpose. Selecting a filter value should update the browser URL search params without reloading the page, and filter cards can support compact sizing around 3x1 by default with a 2x1 minimum.
+- Filter cards should place their Edit action in the same header row as the title, aligned to the right, rather than inside the tile body.
+- Filter cards and their edit dialog should lean on actual Material UI components like `TextField`, `Select`, `Chip`, and `Dialog` so the experience feels clearly Material rather than like custom-styled HTML controls.
 - Demo chart items should randomize between line, scatter, pie, and column charts at creation time, with realistic sample data stored on the item itself so saved dashboards keep the same chart contents and multiple chart cards feel varied. Prefer random selection among the least-used chart types already on the dashboard so new charts do not cluster too heavily into one type.
 - Chart cards should use sensible per-type defaults: line/column/scatter should start larger (around 4x3 with practical minimums), while pie charts can stay more compact; chart previews should use the available card area well and column charts should read like conventional bar/column charts rather than decorative pills.
 - Chart card headers should vertically center the title text with the colored chart badge so the title row feels aligned and tidy.
@@ -95,6 +98,7 @@ General collaboration preferences:
 - Treat this file as the evolving knowledge base for the project.
 - Any durable code, UX, interaction, architecture, or workflow updates made during collaboration should be reflected here.
 - At the start of a new conversation, this file should be treated as the baseline project context and source of truth for established preferences/decisions.
+- Prefer a Material UI / Material 3 look and feel for the demo app and standard components; custom styling should still feel like it belongs within the MUI ecosystem rather than drifting into a separate visual language.
 - If something seems worth explaining, add a code comment.
 - When a behavior is tricky, prefer clear structure and readability over cleverness.
 - If a design/interaction model is fundamentally fighting the desired UX, prefer rethinking the model instead of patching it repeatedly.

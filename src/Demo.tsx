@@ -101,9 +101,9 @@ const addItemOptions: AddItemOption[] = [
       filterOptions: ['North America', 'Europe', 'APAC'],
       filterValue: 'North America',
       width: 3,
-      height: 2,
+      height: 1,
       minWidth: 2,
-      minHeight: 2,
+      minHeight: 1,
     }),
   },
   {

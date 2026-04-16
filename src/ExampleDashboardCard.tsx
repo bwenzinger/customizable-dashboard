@@ -1,8 +1,11 @@
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   Box,
+  ButtonBase,
   Button,
   Card,
   CardContent,
+  TextField,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -32,6 +35,7 @@ export function ExampleDashboardCard(
 ): React.JSX.Element {
   const { item, isDragging, isResizing, canEdit, onDeleteItem, onItemChanged } =
     props;
+  const [isFilterEditorOpen, setIsFilterEditorOpen] = useState(false);
   const theme = useTheme();
   const itemKind = item.kind ?? 'card';
   const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
@@ -47,7 +51,10 @@ export function ExampleDashboardCard(
   const itemWidth = item.width ?? 1;
   const itemHeight = item.height ?? 1;
   const isSingleRowCard = itemHeight === 1;
-  const isTitleOnlyCard = isSingleRowCard && itemWidth <= 2;
+  const shouldKeepCompactWidgetBodyVisible =
+    itemKind === 'filter' && itemWidth > 1;
+  const isTitleOnlyCard =
+    isSingleRowCard && itemWidth <= 2 && !shouldKeepCompactWidgetBodyVisible;
   const shouldShowCurrentChip = !isTitleOnlyCard;
   const shouldShowMaxChip = !isSingleRowCard;
   const useCompactChipLayout = isSingleRowCard || itemWidth === 1;
@@ -94,6 +101,88 @@ export function ExampleDashboardCard(
     );
   }
 
+  if (itemKind === 'filter') {
+    return (
+      <Card
+        className="draggable-grid-hover-sync"
+        sx={{
+          ...theme.customStyles.floatingCard,
+          ...interactiveCardSx,
+          ...editableCardChromeSx,
+          position: 'relative',
+          height: '100%',
+          opacity: isDragging ? 0.7 : 1,
+          cursor: 'grab',
+          display: 'flex',
+        }}
+      >
+        {canEdit ? (
+          <DeleteDashboardCardButton
+            itemId={item.id}
+            onDeleteItem={onDeleteItem}
+          />
+        ) : null}
+        <CardContent
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: isTitleOnlyCard ? 'center' : 'space-between',
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            gap: isTitleOnlyCard ? 1 : 1.25,
+            overflow: 'hidden',
+            p: `${isTitleOnlyCard ? 12 : 14}px !important`,
+          }}
+        >
+          <DashboardWidgetHeader
+            itemId={item.id}
+            title={item.title}
+            itemKind={itemKind}
+            isTitleOnlyCard={isTitleOnlyCard}
+            canEdit={canEdit}
+            onItemChanged={onItemChanged}
+            titleAction={
+              canEdit ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  data-draggable-grid-no-drag="true"
+                  onMouseDown={handleNoDragMouseDown}
+                  onClick={() => {
+                    setIsFilterEditorOpen(true);
+                  }}
+                  sx={{
+                    minWidth: 0,
+                    borderRadius: 999,
+                    px: 1,
+                    flexShrink: 0,
+                    textTransform: 'none',
+                  }}
+                >
+                  Edit
+                </Button>
+              ) : null
+            }
+          />
+
+          {!isTitleOnlyCard ? (
+            <FilterDashboardItem
+              item={item}
+              isSingleRowCard={isSingleRowCard}
+              isEditorOpen={isFilterEditorOpen}
+              onEditorClose={() => {
+                setIsFilterEditorOpen(false);
+              }}
+              onItemChanged={onItemChanged}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (itemKind !== 'card') {
     return (
       <Card
@@ -129,10 +218,12 @@ export function ExampleDashboardCard(
           }}
         >
           <DashboardWidgetHeader
+            itemId={item.id}
             title={item.title}
             itemKind={itemKind}
             isTitleOnlyCard={isTitleOnlyCard}
             canEdit={canEdit}
+            onItemChanged={onItemChanged}
           />
 
           {!isTitleOnlyCard ? (
@@ -179,25 +270,20 @@ export function ExampleDashboardCard(
           p: `${isTitleOnlyCard ? 12 : 14}px !important`,
         }}
       >
-        <Typography
-          sx={{
-            color: 'text.primary',
-            fontSize: isTitleOnlyCard
+        <EditableDashboardTitle
+          key={`${item.id}:${item.title ?? ''}`}
+          itemId={item.id}
+          title={item.title}
+          canEdit={canEdit}
+          onItemChanged={onItemChanged}
+          clamp={isTitleOnlyCard ? 4 : isSingleRowCard ? 2 : 3}
+          textAlign={isTitleOnlyCard ? 'center' : 'left'}
+          fontSize={
+            isTitleOnlyCard
               ? '0.92rem'
-              : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)',
-            fontWeight: 700,
-            lineHeight: 1.15,
-            letterSpacing: '-0.01em',
-            overflowWrap: 'anywhere',
-            display: '-webkit-box',
-            WebkitBoxOrient: 'vertical',
-            WebkitLineClamp: isTitleOnlyCard ? 4 : isSingleRowCard ? 2 : 3,
-            overflow: 'hidden',
-            textAlign: isTitleOnlyCard ? 'center' : 'left',
-          }}
-        >
-          {item.title}
-        </Typography>
+              : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)'
+          }
+        />
 
         {shouldShowCurrentChip || shouldShowMaxChip ? (
           <Box
@@ -232,75 +318,90 @@ export function ExampleDashboardCard(
 }
 
 type DashboardWidgetHeaderProps = {
+  itemId: string;
   title?: string;
   itemKind: NonNullable<DraggableGridItem['kind']>;
   isTitleOnlyCard: boolean;
   canEdit: boolean;
+  onItemChanged?: (
+    itemId: string,
+    updates: Partial<Omit<DraggableGridItem, 'id'>>
+  ) => void;
+  titleAction?: React.ReactNode;
 };
 
 function DashboardWidgetHeader({
+  itemId,
   title,
   itemKind,
   isTitleOnlyCard,
   canEdit,
+  onItemChanged,
+  titleAction,
 }: DashboardWidgetHeaderProps) {
   const accentColor = getWidgetAccentColor(itemKind);
-  const shouldCenterHeaderRow = !isTitleOnlyCard && itemKind === 'chart';
+  const shouldCenterHeaderRow =
+    !titleAction && !isTitleOnlyCard && itemKind === 'chart';
 
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: isTitleOnlyCard ? 'column' : 'row',
-        alignItems: isTitleOnlyCard
-          ? 'center'
-          : shouldCenterHeaderRow
-            ? 'center'
-            : 'flex-start',
+        alignItems: shouldCenterHeaderRow ? 'center' : 'flex-start',
+        justifyContent:
+          !isTitleOnlyCard && titleAction ? 'space-between' : 'flex-start',
         gap: 1,
         minWidth: 0,
       }}
     >
       <Box
-        aria-hidden
         sx={{
-          width: 26,
-          height: 26,
-          borderRadius: 1.5,
-          bgcolor: accentColor.background,
-          color: accentColor.text,
-          border: canEdit
-            ? `1px dashed ${alpha(accentColor.text, 0.24)}`
-            : '1px solid transparent',
-          display: 'grid',
-          flexShrink: 0,
-          fontSize: '0.76rem',
-          fontWeight: 800,
-          lineHeight: 1,
-          placeItems: 'center',
-        }}
-      >
-        {getWidgetInitial(itemKind)}
-      </Box>
-      <Typography
-        sx={{
-          color: 'text.primary',
-          fontSize: isTitleOnlyCard
-            ? '0.92rem'
-            : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)',
-          fontWeight: 700,
-          lineHeight: 1.15,
+          display: 'flex',
+          flexDirection: isTitleOnlyCard ? 'column' : 'row',
+          alignItems: shouldCenterHeaderRow ? 'center' : 'flex-start',
+          gap: 1,
           minWidth: 0,
-          overflow: 'hidden',
-          overflowWrap: 'anywhere',
-          textAlign: isTitleOnlyCard ? 'center' : 'left',
-          display: '-webkit-box',
-          WebkitBoxOrient: 'vertical',
-          WebkitLineClamp: isTitleOnlyCard ? 4 : 2,
+          flex: 1,
         }}
       >
-        {title}
-      </Typography>
+        <Box
+          aria-hidden
+          sx={{
+            width: 26,
+            height: 26,
+            borderRadius: 1.5,
+            bgcolor: accentColor.background,
+            color: accentColor.text,
+            border: canEdit
+              ? `1px dashed ${alpha(accentColor.text, 0.24)}`
+              : '1px solid transparent',
+            display: 'grid',
+            flexShrink: 0,
+            fontSize: '0.76rem',
+            fontWeight: 800,
+            lineHeight: 1,
+            placeItems: 'center',
+          }}
+        >
+          {getWidgetInitial(itemKind)}
+        </Box>
+        <EditableDashboardTitle
+          key={`${itemId}:${title ?? ''}`}
+          itemId={itemId}
+          title={title}
+          canEdit={canEdit}
+          onItemChanged={onItemChanged}
+          clamp={isTitleOnlyCard ? 4 : 2}
+          textAlign={isTitleOnlyCard ? 'center' : 'left'}
+          fontSize={
+            isTitleOnlyCard
+              ? '0.92rem'
+              : 'clamp(0.95rem, 0.2vw + 0.9rem, 1.08rem)'
+          }
+        />
+      </Box>
+      {titleAction}
     </Box>
   );
 }
@@ -399,17 +500,6 @@ function DashboardWidgetBody({
     );
   }
 
-  if (item.kind === 'filter') {
-    return (
-      <FilterDashboardItem
-        item={item}
-        canEdit={canEdit}
-        isSingleRowCard={isSingleRowCard}
-        onItemChanged={onItemChanged}
-      />
-    );
-  }
-
   if (item.kind === 'metric') {
     return (
       <Box
@@ -488,6 +578,175 @@ function WidgetSupportingText({ children, clamp }: WidgetSupportingTextProps) {
       }}
     >
       {children}
+    </Typography>
+  );
+}
+
+type EditableDashboardTitleProps = {
+  itemId: string;
+  title?: string;
+  canEdit: boolean;
+  onItemChanged?: (
+    itemId: string,
+    updates: Partial<Omit<DraggableGridItem, 'id'>>
+  ) => void;
+  clamp: number;
+  textAlign: 'left' | 'center';
+  fontSize: string;
+};
+
+function EditableDashboardTitle({
+  itemId,
+  title,
+  canEdit,
+  onItemChanged,
+  clamp,
+  textAlign,
+  fontSize,
+}: EditableDashboardTitleProps) {
+  const theme = useTheme();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title ?? '');
+  const canInlineEdit = canEdit && onItemChanged !== undefined;
+  const resolvedTitle = title?.trim() || 'Untitled';
+
+  const finishEditing = (nextTitle: string, shouldSave: boolean) => {
+    const trimmedTitle = nextTitle.trim();
+    const resolvedNextTitle = trimmedTitle || 'Untitled';
+
+    if (shouldSave && resolvedNextTitle !== resolvedTitle) {
+      onItemChanged?.(itemId, {
+        title: resolvedNextTitle,
+      });
+    }
+
+    setIsEditing(false);
+  };
+
+  if (canInlineEdit && isEditing) {
+    return (
+      <Box
+        data-draggable-grid-no-drag="true"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+        }}
+        onMouseDown={handleNoDragMouseDown}
+      >
+        <TextField
+          autoFocus
+          fullWidth
+          hiddenLabel
+          placeholder="Untitled"
+          size="small"
+          value={draftTitle}
+          onBlur={() => {
+            finishEditing(draftTitle, true);
+          }}
+          onChange={(event) => {
+            setDraftTitle(event.currentTarget.value);
+          }}
+          onFocus={(event) => {
+            event.currentTarget.select();
+          }}
+          onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              finishEditing(draftTitle, true);
+              return;
+            }
+
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              finishEditing(title ?? '', false);
+            }
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2.5,
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
+            },
+            '& .MuiOutlinedInput-input': {
+              px: 1.1,
+              py: 0.7,
+              color: theme.palette.text.primary,
+              fontSize,
+              fontWeight: 700,
+              lineHeight: 1.15,
+              letterSpacing: '-0.01em',
+              textAlign,
+            },
+          }}
+        />
+      </Box>
+    );
+  }
+
+  if (canInlineEdit) {
+    return (
+      <ButtonBase
+        disableRipple
+        data-draggable-grid-no-drag="true"
+        onMouseDown={handleNoDragMouseDown}
+        onClick={() => {
+          setDraftTitle(title ?? '');
+          setIsEditing(true);
+        }}
+        sx={{
+          width: '100%',
+          minWidth: 0,
+          justifyContent: textAlign === 'center' ? 'center' : 'flex-start',
+          alignItems: 'flex-start',
+          borderRadius: 2,
+          mx: textAlign === 'center' ? 0 : -0.5,
+          px: 0.5,
+          py: 0.35,
+          textAlign,
+          '&:hover': {
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
+          },
+        }}
+      >
+        <Typography
+          sx={{
+            color: 'text.primary',
+            fontSize,
+            fontWeight: 700,
+            lineHeight: 1.15,
+            letterSpacing: '-0.01em',
+            minWidth: 0,
+            overflow: 'hidden',
+            overflowWrap: 'anywhere',
+            textAlign,
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical',
+            WebkitLineClamp: clamp,
+          }}
+        >
+          {resolvedTitle}
+        </Typography>
+      </ButtonBase>
+    );
+  }
+
+  return (
+    <Typography
+      sx={{
+        color: 'text.primary',
+        fontSize,
+        fontWeight: 700,
+        lineHeight: 1.15,
+        letterSpacing: '-0.01em',
+        minWidth: 0,
+        overflow: 'hidden',
+        overflowWrap: 'anywhere',
+        textAlign,
+        display: '-webkit-box',
+        WebkitBoxOrient: 'vertical',
+        WebkitLineClamp: clamp,
+      }}
+    >
+      {resolvedTitle}
     </Typography>
   );
 }
@@ -1186,6 +1445,11 @@ function getWidgetAccentColor(kind: NonNullable<DraggableGridItem['kind']>) {
   };
 
   return colors[kind];
+}
+
+function handleNoDragMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function DeleteDashboardCardButton({
