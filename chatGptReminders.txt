@@ -31,6 +31,7 @@ Draggable grid behavior preferences:
 - When `canEdit` is true, the grid should visibly read as editable through reusable layout chrome: a lightly tinted canvas, subtle dashed item outlines, and clearer resize/tool affordances rather than relying only on cursors or buttons.
 - Keep edit-mode chrome subtle and content-first; avoid heavy gradients or decorative top accent bars on cards.
 - The demo should include an edit-mode toggle that drives `canEdit`; when viewing/read-only, external demo controls like Add Item should not mutate the layout.
+- Starting a brand new dashboard via `New` should automatically switch the demo back into edit mode so the empty draft is immediately editable.
 - The demo should support multiple named dashboards in localStorage, with controls to create a new draft, save/update the active dashboard, save a copy, and switch which saved dashboard is currently displayed.
 - The demo storage can target only the current multi-dashboard localStorage format; no legacy single-layout migration path is needed.
 - New dashboards and the default unsaved draft should start empty rather than with seeded sample cards.

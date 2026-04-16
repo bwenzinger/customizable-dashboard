@@ -298,6 +298,7 @@ function App() {
   );
 
   const handleNewDashboard = useCallback(() => {
+    setCanEdit(true);
     setActiveDashboardId(null);
     setActiveDashboardName(getNextDashboardName(savedDashboards));
     setLayout(emptyDashboardLayout);
