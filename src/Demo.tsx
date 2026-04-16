@@ -203,12 +203,16 @@ function App() {
     ) => {
       setLayout((currentLayout) => {
         const nextItemNumber = currentLayout.length + 1;
+        const nextRow =
+          currentLayout.length === 0
+            ? 1
+            : getRequiredRowCount(currentLayout) + 1;
 
         return [
           ...currentLayout,
           {
             id: createDemoGridItemId(),
-            row: getRequiredRowCount(currentLayout) + 1,
+            row: nextRow,
             column: 1,
             ...buildItem(nextItemNumber),
           },
