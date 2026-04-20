@@ -1,147 +1,74 @@
 import type {
   DraggableGridBreakpoint,
+  DraggableGridItem,
   DraggableGridResponsiveColumns,
 } from './types';
-
-export function reorderItems<T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number
-): T[] {
-  if (fromIndex === toIndex) {
-    return items;
-  }
-
-  const nextItems = [...items];
-  const movedItem = nextItems[fromIndex];
-
-  if (!movedItem) {
-    return items;
-  }
-
-  nextItems.splice(fromIndex, 1);
-  nextItems.splice(toIndex, 0, movedItem);
-
-  return nextItems;
-}
-
-export function shouldReorderOnOverlap(args: {
-  draggingRect: DOMRect | undefined;
-  targetRect: DOMRect;
-  clientX: number;
-  clientY: number;
-  overlapPx: number;
-}): boolean {
-  const { draggingRect, targetRect, clientX, clientY, overlapPx } = args;
-
-  if (!draggingRect) {
-    return (
-      clientY >= targetRect.top + Math.min(overlapPx, targetRect.height / 2)
-    );
-  }
-
-  // If both items visually occupy the same row, reorder based on horizontal
-  // overlap; otherwise use vertical overlap for cross-row movement.
-  const sameRow = hasMeaningfulVerticalOverlap(draggingRect, targetRect);
-
-  if (sameRow) {
-    const threshold = Math.min(overlapPx, targetRect.width / 2);
-    const draggingCenterX = draggingRect.left + draggingRect.width / 2;
-    const targetCenterX = targetRect.left + targetRect.width / 2;
-
-    if (draggingCenterX <= targetCenterX) {
-      return clientX >= targetRect.left + threshold;
-    }
-
-    return clientX <= targetRect.right - threshold;
-  }
-
-  const threshold = Math.min(overlapPx, targetRect.height / 2);
-  const draggingCenterY = draggingRect.top + draggingRect.height / 2;
-  const targetCenterY = targetRect.top + targetRect.height / 2;
-
-  if (draggingCenterY <= targetCenterY) {
-    return clientY >= targetRect.top + threshold;
-  }
-
-  return clientY <= targetRect.bottom - threshold;
-}
-
-function hasMeaningfulVerticalOverlap(
-  firstRect: DOMRect,
-  secondRect: DOMRect
-): boolean {
-  const overlapTop = Math.max(firstRect.top, secondRect.top);
-  const overlapBottom = Math.min(firstRect.bottom, secondRect.bottom);
-  const overlapHeight = Math.max(0, overlapBottom - overlapTop);
-  const minimumRelevantOverlap =
-    Math.min(firstRect.height, secondRect.height) * 0.35;
-
-  return overlapHeight >= minimumRelevantOverlap;
-}
-
-export function isPointWithinRect(args: {
-  clientX: number;
-  clientY: number;
-  rect: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  };
-}): boolean {
-  const { clientX, clientY, rect } = args;
-
-  return (
-    clientX >= rect.left &&
-    clientX <= rect.right &&
-    clientY >= rect.top &&
-    clientY <= rect.bottom
-  );
-}
-
-export function expandRect(args: { rect: DOMRect; paddingPx: number }): {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-} {
-  const { rect, paddingPx } = args;
-
-  return {
-    left: rect.left - paddingPx,
-    right: rect.right + paddingPx,
-    top: rect.top - paddingPx,
-    bottom: rect.bottom + paddingPx,
-  };
-}
 
 export function getResizedColumnSpan(args: {
   containerWidth: number;
   columns: number;
   gap: number;
-  startWidth: number;
-  deltaX: number;
+  padding: number;
+  parentCoords: DOMRect;
+  clientX: number;
+  currentWidth: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold?: number;
 }): number {
-  const { containerWidth, columns, gap, startWidth, deltaX } = args;
+  const {
+    containerWidth,
+    columns,
+    gap,
+    padding,
+    parentCoords,
+    clientX,
+    currentWidth,
+    resizeDirection,
+    stepThreshold = 0.9,
+  } = args;
+  const availableWidth = containerWidth - padding * 2;
+  const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
+  const singleColumnWidth = innerWidth / columns;
+  const columnStride = singleColumnWidth + gap;
+  const distanceFromLeftToMouse = clientX - parentCoords.left;
+  const rawWidth = (distanceFromLeftToMouse + gap) / columnStride;
 
-  const singleColumnWidth = (containerWidth - gap * (columns - 1)) / columns;
-  const strideWidth = singleColumnWidth + gap;
-  // Require a bit of horizontal travel before changing span so minor pointer
-  // jitter does not cause accidental resize jumps.
-  const activationPx = Math.min(40, Math.max(20, strideWidth * 0.18));
+  return getDirectionalResizeSpan({
+    rawSpan: rawWidth,
+    currentSpan: currentWidth,
+    resizeDirection,
+    stepThreshold,
+  });
+}
 
-  if (deltaX >= activationPx) {
-    return startWidth + Math.floor((deltaX - activationPx) / strideWidth) + 1;
-  }
+export function getResizedRowSpan(args: {
+  parentCoords: DOMRect;
+  clientY: number;
+  rowHeight: number;
+  gap: number;
+  currentHeight: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold?: number;
+}): number {
+  const {
+    parentCoords,
+    clientY,
+    rowHeight,
+    gap,
+    currentHeight,
+    resizeDirection,
+    stepThreshold = 0.9,
+  } = args;
+  const rowStride = rowHeight + gap;
+  const distanceFromTopToMouse = clientY - parentCoords.top;
+  const rawHeight = (distanceFromTopToMouse + gap) / rowStride;
 
-  if (deltaX <= -activationPx) {
-    return (
-      startWidth - (Math.floor((-deltaX - activationPx) / strideWidth) + 1)
-    );
-  }
-
-  return startWidth;
+  return getDirectionalResizeSpan({
+    rawSpan: rawHeight,
+    currentSpan: currentHeight,
+    resizeDirection,
+    stepThreshold,
+  });
 }
 
 export function clamp(
@@ -152,84 +79,626 @@ export function clamp(
   return Math.min(Math.max(value, minValue), maxValue);
 }
 
-export function normalizeItemWidth(args: {
+export function clampItemWidth(args: {
   width: number;
-  minWidth: number;
-  maxWidth: number;
+  minWidth?: number;
+  maxWidth?: number;
   columns: number;
 }): number {
   const { width, minWidth, maxWidth, columns } = args;
-  const maxAllowedWidth = Math.max(1, Math.min(maxWidth, columns));
-  const minAllowedWidth = Math.min(Math.max(1, minWidth), maxAllowedWidth);
+  const maxAllowedWidth = Math.max(1, Math.min(maxWidth ?? columns, columns));
+  const minAllowedWidth = Math.min(
+    Math.max(1, minWidth ?? 1),
+    maxAllowedWidth
+  );
 
-  return clamp(width, minAllowedWidth, maxAllowedWidth);
+  return clamp(Math.max(1, width), minAllowedWidth, maxAllowedWidth);
 }
 
-export function normalizeLayoutWidths<T extends {
-  width: number;
-  minWidth: number;
-  maxWidth: number;
-}>(layout: T[], columns: number): T[] {
+export function getItemWidth(
+  item?: Pick<DraggableGridItem, 'width'>
+): number {
+  return Math.max(1, item?.width ?? 1);
+}
+
+export function getItemHeight(
+  item?: Pick<DraggableGridItem, 'height'>
+): number {
+  return Math.max(1, item?.height ?? 1);
+}
+
+export function clampItemHeight(args: {
+  height: number;
+  minHeight?: number;
+  maxHeight?: number;
+}): number {
+  const { height, minHeight, maxHeight } = args;
+  const maxAllowedHeight =
+    maxHeight === undefined ? Number.POSITIVE_INFINITY : Math.max(1, maxHeight);
+  const minAllowedHeight = Math.min(
+    Math.max(1, minHeight ?? 1),
+    maxAllowedHeight
+  );
+
+  return clamp(Math.max(1, height), minAllowedHeight, maxAllowedHeight);
+}
+
+export function normalizeLayoutSpans(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
   return layout.map((item) => {
-    const normalizedWidth = normalizeItemWidth({
-      width: item.width,
+    const resolvedWidth = getItemWidth(item);
+    const resolvedHeight = getItemHeight(item);
+    const normalizedWidth = clampItemWidth({
+      width: resolvedWidth,
       minWidth: item.minWidth,
       maxWidth: item.maxWidth,
       columns,
     });
+    const normalizedHeight = clampItemHeight({
+      height: resolvedHeight,
+      minHeight: item.minHeight,
+      maxHeight: item.maxHeight,
+    });
+    const hasWidthChanged = normalizedWidth !== item.width;
+    const hasHeightChanged = normalizedHeight !== item.height;
 
-    if (normalizedWidth === item.width) {
+    if (!hasWidthChanged && !hasHeightChanged) {
       return item;
     }
 
     return {
       ...item,
-      width: normalizedWidth,
+      ...(hasWidthChanged ? { width: normalizedWidth } : {}),
+      ...(hasHeightChanged ? { height: normalizedHeight } : {}),
     };
   });
 }
 
-export function resolveColumns(args: {
-  columns: number | DraggableGridResponsiveColumns;
-  matches: Record<DraggableGridBreakpoint, boolean>;
+export function normalizeLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const occupiedCells = new Set<string>();
+
+  return normalizeLayoutSpans(layout, columns).map((item) => {
+    const itemWidth = getItemWidth(item);
+    const desiredRow = Math.max(1, item.row ?? 1);
+    const maxColumnStart = Math.max(1, columns - itemWidth + 1);
+    const desiredColumn = clamp(item.column ?? 1, 1, maxColumnStart);
+    const itemHeight = getItemHeight(item);
+    // Keep each item as close as possible to its requested slot, but push it
+    // forward if that slot is already occupied by an earlier item.
+    const placement = findNextAvailableSlot({
+      occupiedCells,
+      columns,
+      width: itemWidth,
+      height: itemHeight,
+      startRow: desiredRow,
+      startColumn: desiredColumn,
+    });
+    markOccupiedCells({
+      occupiedCells,
+      row: placement.row,
+      column: placement.column,
+      width: itemWidth,
+      height: itemHeight,
+    });
+
+    if (item.row === placement.row && item.column === placement.column) {
+      return item;
+    }
+
+    return {
+      ...item,
+      row: placement.row,
+      column: placement.column,
+    };
+  });
+}
+
+export function compactLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const normalizedLayout = normalizeLayoutSpans(layout, columns);
+  // Collapse first captures the current row-by-row reading order, then packs
+  // that exact order. Later items are not allowed to backfill earlier holes.
+  return packLayoutFromOrderStrictly(
+    getLayoutInVisualReadingOrder(normalizedLayout),
+    columns
+  );
+}
+
+export function optimizeLayoutPositions(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const visuallySortedLayout = getLayoutInVisualReadingOrder(
+    normalizeLayoutSpans(layout, columns)
+  );
+  // First-fit packing works best when larger items claim space before the small
+  // filler cards, so this mode intentionally allows visual order to change.
+  const optimizedOrder = visuallySortedLayout
+    .map((item, index) => ({
+      item,
+      index,
+    }))
+    .sort((first, second) => {
+      const firstArea = getItemWidth(first.item) * getItemHeight(first.item);
+      const secondArea = getItemWidth(second.item) * getItemHeight(second.item);
+      const areaDifference = secondArea - firstArea;
+
+      if (areaDifference !== 0) {
+        return areaDifference;
+      }
+
+      const widthDifference =
+        getItemWidth(second.item) - getItemWidth(first.item);
+
+      if (widthDifference !== 0) {
+        return widthDifference;
+      }
+
+      const heightDifference =
+        getItemHeight(second.item) - getItemHeight(first.item);
+
+      if (heightDifference !== 0) {
+        return heightDifference;
+      }
+
+      return first.index - second.index;
+    })
+    .map(({ item }) => item);
+
+  return packLayoutFromOrder(optimizedOrder, columns);
+}
+
+export function moveItemToGridSlot(args: {
+  layout: DraggableGridItem[];
+  itemId: string;
+  row: number;
+  column: number;
+  columns: number;
+}): DraggableGridItem[] {
+  const { layout, itemId, row, column, columns } = args;
+  const movedItem = layout.find((item) => item.id === itemId);
+
+  if (!movedItem) {
+    return layout;
+  }
+
+  // Give the actively moved item priority at the requested slot, then reflow
+  // every other item around it.
+  return normalizeLayoutWithPriority({
+    layout,
+    prioritizedItem: {
+      ...movedItem,
+      row,
+      column,
+    },
+    columns,
+  });
+}
+
+export function resizeItemInLayout(args: {
+  layout: DraggableGridItem[];
+  itemId: string;
+  width: number;
+  height: number;
+  columns: number;
+}): DraggableGridItem[] {
+  const { layout, itemId, width, height, columns } = args;
+  const resizedItem = layout.find((item) => item.id === itemId);
+
+  if (!resizedItem) {
+    return layout;
+  }
+
+  // Keep the actively resized item anchored to its current slot first, then let
+  // the rest of the grid move around it. This avoids "skipping" widths when an
+  // earlier item temporarily occupies the resized space.
+  return normalizeLayoutWithPriority({
+    layout,
+    prioritizedItem: {
+      ...resizedItem,
+      width,
+      height,
+    },
+    columns,
+  });
+}
+
+export function getRequiredRowCount<T extends { row?: number; height?: number }>(
+  layout: T[]
+): number {
+  return layout.reduce((maxRow, item) => {
+    const rowEnd = (item.row ?? 1) + getItemHeight(item) - 1;
+
+    return Math.max(maxRow, rowEnd);
+  }, 1);
+}
+
+export function getGridSlotFromPointer(args: {
+  clientX: number;
+  clientY: number;
+  containerRect: DOMRect;
+  columns: number;
+  rowCount: number;
+  rowHeight: number;
+  gap: number;
+  padding: number;
+  itemWidth: number;
+  itemHeight: number;
+}): { row: number; column: number } {
+  const {
+    clientX,
+    clientY,
+    containerRect,
+    columns,
+    rowCount,
+    rowHeight,
+    gap,
+    padding,
+    itemWidth,
+    itemHeight,
+  } = args;
+  const availableWidth = containerRect.width - padding * 2;
+  const innerWidth = availableWidth - gap * Math.max(0, columns - 1);
+  const columnWidth = innerWidth / columns;
+  const columnStride = columnWidth + gap;
+  const rowStride = rowHeight + gap;
+  const gridHeight = rowCount * rowHeight + Math.max(0, rowCount - 1) * gap;
+  const itemPixelWidth =
+    itemWidth * columnWidth + Math.max(0, itemWidth - 1) * gap;
+  const itemPixelHeight =
+    itemHeight * rowHeight + Math.max(0, itemHeight - 1) * gap;
+  const maxColumnStart = Math.max(1, columns - itemWidth + 1);
+  const maxRowStart = Math.max(1, rowCount - itemHeight + 1);
+  // `clientX`/`clientY` represent the dragged card's projected top-left corner.
+  // Snap using the card's visual center so moving left/right feels symmetric.
+  const projectedLeft = clientX - containerRect.left - padding;
+  const projectedTop = clientY - containerRect.top - padding;
+  const centerX = clamp(
+    projectedLeft + itemPixelWidth / 2,
+    columnWidth / 2,
+    availableWidth - itemPixelWidth / 2
+  );
+  const centerY = clamp(
+    projectedTop + itemPixelHeight / 2,
+    itemPixelHeight / 2,
+    gridHeight - itemPixelHeight / 2
+  );
+  // Convert the center point to the nearest valid *start column* for an item of
+  // this width. Using the dragged item's full width keeps wider cards from
+  // feeling biased to the right while 1x1 cards still snap naturally.
+  const rawColumn =
+    Math.round((centerX - itemPixelWidth / 2) / columnStride) + 1;
+  const rawRow = Math.round((centerY - itemPixelHeight / 2) / rowStride) + 1;
+
+  return {
+    row: clamp(rawRow, 1, maxRowStart),
+    column: clamp(rawColumn, 1, maxColumnStart),
+  };
+}
+
+function getDirectionalResizeSpan(args: {
+  rawSpan: number;
+  currentSpan: number;
+  resizeDirection: 'increase' | 'decrease' | null;
+  stepThreshold: number;
 }): number {
-  const { columns, matches } = args;
+  const {
+    rawSpan,
+    currentSpan,
+    resizeDirection,
+    stepThreshold,
+  } = args;
+  const clampedStepThreshold = clamp(stepThreshold, 0, 1);
+  const thresholdOffset = 1 - clampedStepThreshold;
+
+  if (resizeDirection === 'increase') {
+    return Math.max(currentSpan, Math.floor(rawSpan + thresholdOffset));
+  }
+
+  if (resizeDirection === 'decrease') {
+    return Math.min(currentSpan, Math.ceil(rawSpan - thresholdOffset));
+  }
+
+  return currentSpan;
+}
+
+function findNextAvailableSlot(args: {
+  occupiedCells: Set<string>;
+  columns: number;
+  width: number;
+  height: number;
+  startRow: number;
+  startColumn: number;
+}): { row: number; column: number } {
+  const { occupiedCells, columns, width, height, startRow, startColumn } = args;
+
+  // Search from the desired slot outward so items preserve intentional gaps
+  // whenever possible instead of always collapsing back to row 1 / column 1.
+  for (let row = startRow; row < startRow + 500; row += 1) {
+    const firstColumn = row === startRow ? startColumn : 1;
+    const lastColumn = Math.max(1, columns - width + 1);
+
+    for (let column = firstColumn; column <= lastColumn; column += 1) {
+      if (
+        canPlaceItem({
+          occupiedCells,
+          row,
+          column,
+          width,
+          height,
+        })
+      ) {
+        return {
+          row,
+          column,
+        };
+      }
+    }
+  }
+
+  return {
+    row: startRow,
+    column: startColumn,
+  };
+}
+
+function canPlaceItem(args: {
+  occupiedCells: Set<string>;
+  row: number;
+  column: number;
+  width: number;
+  height: number;
+}): boolean {
+  const { occupiedCells, row, column, width, height } = args;
+
+  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
+    for (let columnOffset = 0; columnOffset < width; columnOffset += 1) {
+      if (
+        occupiedCells.has(
+          getOccupiedCellKey(row + rowOffset, column + columnOffset)
+        )
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function markOccupiedCells(args: {
+  occupiedCells: Set<string>;
+  row: number;
+  column: number;
+  width: number;
+  height: number;
+}): void {
+  const { occupiedCells, row, column, width, height } = args;
+
+  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
+    for (let columnOffset = 0; columnOffset < width; columnOffset += 1) {
+      occupiedCells.add(getOccupiedCellKey(row + rowOffset, column + columnOffset));
+    }
+  }
+}
+
+function getOccupiedCellKey(row: number, column: number): string {
+  return `${row}:${column}`;
+}
+
+function getLayoutInVisualReadingOrder(
+  layout: DraggableGridItem[]
+): DraggableGridItem[] {
+  return layout
+    .map((item, index) => ({
+      item,
+      index,
+    }))
+    .sort((first, second) => {
+      const rowDifference = (first.item.row ?? 1) - (second.item.row ?? 1);
+
+      if (rowDifference !== 0) {
+        return rowDifference;
+      }
+
+      const columnDifference =
+        (first.item.column ?? 1) - (second.item.column ?? 1);
+
+      if (columnDifference !== 0) {
+        return columnDifference;
+      }
+
+      return first.index - second.index;
+    })
+    .map(({ item }) => item);
+}
+
+function packLayoutFromOrder(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const compactedSeedLayout = layout.map((item) => ({
+    ...item,
+    row: 1,
+    column: 1,
+  }));
+
+  return normalizeLayoutPositions(compactedSeedLayout, columns);
+}
+
+function packLayoutFromOrderStrictly(
+  layout: DraggableGridItem[],
+  columns: number
+): DraggableGridItem[] {
+  const occupiedCells = new Set<string>();
+  const priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }> = [];
+
+  return normalizeLayoutSpans(layout, columns).map((item) => {
+    const itemWidth = getItemWidth(item);
+    const itemHeight = getItemHeight(item);
+    const placement = findNextAvailableSlotAfter({
+      occupiedCells,
+      columns,
+      width: itemWidth,
+      height: itemHeight,
+      priorPlacements,
+    });
+
+    markOccupiedCells({
+      occupiedCells,
+      row: placement.row,
+      column: placement.column,
+      width: itemWidth,
+      height: itemHeight,
+    });
+
+    priorPlacements.push({
+      ...placement,
+      width: itemWidth,
+      height: itemHeight,
+    });
+
+    if (item.row === placement.row && item.column === placement.column) {
+      return item;
+    }
+
+    return {
+      ...item,
+      row: placement.row,
+      column: placement.column,
+    };
+  });
+}
+
+function findNextAvailableSlotAfter(args: {
+  occupiedCells: Set<string>;
+  columns: number;
+  width: number;
+  height: number;
+  priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }>;
+}): { row: number; column: number } {
+  const {
+    occupiedCells,
+    columns,
+    width,
+    height,
+    priorPlacements,
+  } = args;
+  const maxColumnStart = Math.max(1, columns - width + 1);
+  const previousPlacement = priorPlacements.at(-1);
+  const startRow = previousPlacement?.row ?? 1;
+  const startColumn = previousPlacement ? previousPlacement.column + 1 : 1;
+
+  // Search upward first by scanning rows before columns, but never let the next
+  // card visually pass earlier ordered cards that still occupy the same band.
+  for (let row = startRow; row < startRow + 1000; row += 1) {
+    const firstColumn = row === startRow ? startColumn : 1;
+
+    for (let column = firstColumn; column <= maxColumnStart; column += 1) {
+      if (
+        canPlaceItem({
+          occupiedCells,
+          row,
+          column,
+          width,
+          height,
+        })
+        && doesSlotRespectPriorOrder({
+          row,
+          column,
+          priorPlacements,
+        })
+      ) {
+        return {
+          row,
+          column,
+        };
+      }
+    }
+  }
+
+  return {
+    row: startRow + 1000,
+    column: 1,
+  };
+}
+
+function doesSlotRespectPriorOrder(args: {
+  row: number;
+  column: number;
+  priorPlacements: Array<{
+    row: number;
+    column: number;
+    width: number;
+    height: number;
+  }>;
+}): boolean {
+  const { row, column, priorPlacements } = args;
+
+  return priorPlacements.every((placement) => {
+    const placementBottom = placement.row + placement.height - 1;
+    const placementRight = placement.column + placement.width - 1;
+
+    if (row > placementBottom) {
+      return true;
+    }
+
+    return column > placementRight;
+  });
+}
+
+function normalizeLayoutWithPriority(args: {
+  layout: DraggableGridItem[];
+  prioritizedItem: DraggableGridItem;
+  columns: number;
+}): DraggableGridItem[] {
+  const { layout, prioritizedItem, columns } = args;
+  const prioritizedLayout = [
+    prioritizedItem,
+    ...layout.filter((item) => item.id !== prioritizedItem.id),
+  ];
+  const resolvedLayout = normalizeLayoutPositions(prioritizedLayout, columns);
+  const resolvedById = new Map(
+    resolvedLayout.map((item) => [item.id, item] as const)
+  );
+
+  return layout.map((item) => resolvedById.get(item.id) ?? item);
+}
+
+export function getNumColumns(args: {
+  columns: number | DraggableGridResponsiveColumns;
+  activeBreakpoint: DraggableGridBreakpoint;
+}): number {
+  const { columns, activeBreakpoint } = args;
 
   if (typeof columns === 'number') {
     return Math.max(1, columns);
   }
 
-  const orderedBreakpoints: DraggableGridBreakpoint[] = [
-    'xl',
-    'lg',
-    'md',
-    'sm',
-    'xs',
-  ];
-
-  // Walk from the largest active breakpoint downward so larger layouts can
-  // override smaller ones while still inheriting missing values.
-  for (const breakpoint of orderedBreakpoints) {
-    if (matches[breakpoint]) {
-      const value = getResponsiveValueForBreakpoint({
-        columns,
-        breakpoint,
-      });
-
-      if (value !== undefined) {
-        return Math.max(1, value);
-      }
-    }
-  }
-
-  return 1;
+  return columns[activeBreakpoint] || 1;
 }
 
-export function getActiveBreakpoint(matches: Record<
-  DraggableGridBreakpoint,
-  boolean
->): DraggableGridBreakpoint {
-  const orderedBreakpoints: DraggableGridBreakpoint[] = [
+export function getActiveBreakpoint(
+  matches: Record<DraggableGridBreakpoint, boolean>
+): DraggableGridBreakpoint {
+  const breakpointOrder: DraggableGridBreakpoint[] = [
     'xl',
     'lg',
     'md',
@@ -237,39 +706,11 @@ export function getActiveBreakpoint(matches: Record<
     'xs',
   ];
 
-  for (const breakpoint of orderedBreakpoints) {
+  for (const breakpoint of breakpointOrder) {
     if (matches[breakpoint]) {
       return breakpoint;
     }
   }
 
   return 'xs';
-}
-
-function getResponsiveValueForBreakpoint(args: {
-  columns: DraggableGridResponsiveColumns;
-  breakpoint: DraggableGridBreakpoint;
-}): number | undefined {
-  const { columns, breakpoint } = args;
-
-  const fallbackOrderByBreakpoint: Record<
-    DraggableGridBreakpoint,
-    DraggableGridBreakpoint[]
-  > = {
-    xs: ['xs'],
-    sm: ['sm', 'xs'],
-    md: ['md', 'sm', 'xs'],
-    lg: ['lg', 'md', 'sm', 'xs'],
-    xl: ['xl', 'lg', 'md', 'sm', 'xs'],
-  };
-
-  for (const key of fallbackOrderByBreakpoint[breakpoint]) {
-    const value = columns[key];
-
-    if (value !== undefined) {
-      return value;
-    }
-  }
-
-  return undefined;
 }
