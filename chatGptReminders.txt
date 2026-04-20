@@ -58,6 +58,8 @@ Draggable grid behavior preferences:
 - Pie chart cards should center their chart layout and let the donut use more of the available space instead of hugging one side or reading too small.
 - Pie chart previews should stay strictly contained within the card; on compact chart tiles, prioritize the donut itself and hide the legend rather than letting the chart spill outside the card bounds.
 - Pie chart legends should show computed share percentages from the actual underlying values, not assume the incoming values already sum to 100.
+- Chart visuals should expose hover tooltips for bars, line points, scatter points, and pie slices so users can see the exact value/unit behind each mark. Prefer full area names in tooltips when the axis label is abbreviated, and keep the tooltip copy unit-aware (USD, cents/kWh, TWh, share %, etc.).
+- If chart tooltips should feel instant, prefer shared MUI `Tooltip` components with `enterDelay={0}` over native browser/SVG `title` tooltips, since the native delay is browser-controlled and not reliably tunable.
 - On an empty dashboard, the first added item should start at row 1, column 1; only later additions should append below the current layout footprint.
 - Deleting cards is a demo-level behavior, not part of the `DraggableGrid` library API; demo cards can expose their own delete affordance that opts out of drag gestures and removes the item from demo layout state.
 - Demo-only card controls like delete buttons should be positioned relative to the card itself so they naturally move with card hover/drag animations instead of needing their own sync transforms.

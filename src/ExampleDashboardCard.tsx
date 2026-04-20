@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -766,8 +767,10 @@ function DemoElectricityChartWidgetBody({
       description={resolvedChart.description}
       chartTrend={resolvedChart.trend}
       labels={resolvedChart.labels}
+      tooltipLabels={resolvedChart.tooltipLabels}
       points={resolvedChart.points}
       values={resolvedChart.values}
+      chartPresetId={item.chartPresetId}
       cardWidth={cardWidth}
       cardHeight={cardHeight}
       isSingleRowCard={isSingleRowCard}
@@ -780,8 +783,10 @@ function ChartWidgetBody({
   description,
   chartTrend,
   labels,
+  tooltipLabels,
   points,
   values,
+  chartPresetId,
   cardWidth,
   cardHeight,
   isSingleRowCard,
@@ -790,8 +795,10 @@ function ChartWidgetBody({
   description?: string;
   chartTrend?: string;
   labels?: string[];
+  tooltipLabels?: string[];
   points?: DraggableGridChartPoint[];
   values?: number[];
+  chartPresetId?: string;
   cardWidth: number;
   cardHeight: number;
   isSingleRowCard: boolean;
@@ -816,8 +823,10 @@ function ChartWidgetBody({
         chartType={resolvedChartType}
         isSingleRowCard={isSingleRowCard}
         labels={labels}
+        tooltipLabels={tooltipLabels}
         points={points}
         values={values}
+        chartPresetId={chartPresetId}
         cardWidth={cardWidth}
         cardHeight={cardHeight}
       />
@@ -841,16 +850,20 @@ function ChartCanvas({
   chartType,
   isSingleRowCard,
   labels,
+  tooltipLabels,
   points,
   values,
+  chartPresetId,
   cardWidth,
   cardHeight,
 }: {
   chartType: DraggableGridChartType;
   isSingleRowCard: boolean;
   labels?: string[];
+  tooltipLabels?: string[];
   points?: DraggableGridChartPoint[];
   values?: number[];
+  chartPresetId?: string;
   cardWidth: number;
   cardHeight: number;
 }) {
@@ -860,14 +873,19 @@ function ChartCanvas({
         <LineChartPreview
           isSingleRowCard={isSingleRowCard}
           labels={labels}
+          tooltipLabels={tooltipLabels}
           values={values}
+          chartPresetId={chartPresetId}
         />
       );
     case 'scatter':
       return (
         <ScatterChartPreview
           isSingleRowCard={isSingleRowCard}
+          labels={labels}
+          tooltipLabels={tooltipLabels}
           points={points}
+          chartPresetId={chartPresetId}
         />
       );
     case 'pie':
@@ -875,7 +893,9 @@ function ChartCanvas({
         <PieChartPreview
           isSingleRowCard={isSingleRowCard}
           labels={labels}
+          tooltipLabels={tooltipLabels}
           values={values}
+          chartPresetId={chartPresetId}
           cardWidth={cardWidth}
           cardHeight={cardHeight}
         />
@@ -886,7 +906,9 @@ function ChartCanvas({
         <ColumnChartPreview
           isSingleRowCard={isSingleRowCard}
           labels={labels}
+          tooltipLabels={tooltipLabels}
           values={values}
+          chartPresetId={chartPresetId}
         />
       );
   }
@@ -895,11 +917,15 @@ function ChartCanvas({
 function LineChartPreview({
   isSingleRowCard,
   labels,
+  tooltipLabels,
   values,
+  chartPresetId,
 }: {
   isSingleRowCard: boolean;
   labels?: string[];
+  tooltipLabels?: string[];
   values?: number[];
+  chartPresetId?: string;
 }) {
   const chartValues =
     values && values.length > 1 ? values : [24, 31, 28, 37, 35, 43, 48];
@@ -914,26 +940,33 @@ function LineChartPreview({
   const minValue = Math.min(...chartValues);
   const maxValue = Math.max(...chartValues);
   const valueRange = Math.max(maxValue - minValue, 1);
-  const pointsString = chartValues
-    .map((value, index) => {
-      const x =
-        svgPaddingX +
-        (index / Math.max(chartValues.length - 1, 1)) *
-          (svgWidth - svgPaddingX * 2);
-      const y =
-        svgHeight -
-        svgPaddingY -
-        ((value - minValue) / valueRange) * (svgHeight - svgPaddingY * 2);
+  const chartTooltipLabels =
+    tooltipLabels && tooltipLabels.length === chartValues.length
+      ? tooltipLabels
+      : chartLabels;
+  const chartPoints = chartValues.map((value, index) => {
+    const x =
+      svgPaddingX +
+      (index / Math.max(chartValues.length - 1, 1)) *
+        (svgWidth - svgPaddingX * 2);
+    const y =
+      svgHeight -
+      svgPaddingY -
+      ((value - minValue) / valueRange) * (svgHeight - svgPaddingY * 2);
 
-      return `${x},${y}`;
-    })
-    .join(' ');
-  const linePoints = pointsString.split(' ');
+    return {
+      isLast: index === chartValues.length - 1,
+      tooltipLabel: chartTooltipLabels[index],
+      value,
+      x,
+      y,
+    };
+  });
+  const pointsString = chartPoints.map(({ x, y }) => `${x},${y}`).join(' ');
   const areaStart = `${svgPaddingX},${svgHeight - svgPaddingY}`;
   const areaEnd = `${
     svgWidth - svgPaddingX
   },${svgHeight - svgPaddingY}`;
-  const lastPoint = linePoints.at(-1)?.split(',') ?? ['0', '0'];
 
   return (
     <Box sx={getChartSurfaceSx(isSingleRowCard)}>
@@ -982,13 +1015,40 @@ function LineChartPreview({
             strokeLinecap: 'round',
           }}
         />
-        <Box
-          component="circle"
-          cx={lastPoint[0]}
-          cy={lastPoint[1]}
-          r="4"
-          sx={{ fill: '#0f766e', stroke: '#ffffff', strokeWidth: 2 }}
-        />
+        {chartPoints.map((point, index) => (
+          <ChartValueTooltip
+            key={`line-point-${index}`}
+            title={formatSeriesPointTooltip(
+              chartPresetId,
+              point.tooltipLabel,
+              point.value
+            )}
+          >
+            <g>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={8}
+                style={{
+                  cursor: 'help',
+                  fill: 'rgba(15, 118, 110, 0.001)',
+                }}
+              />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={point.isLast ? 4 : 2.75}
+                style={{
+                  fill: point.isLast ? '#0f766e' : '#14b8a6',
+                  opacity: point.isLast ? 1 : 0.72,
+                  pointerEvents: 'none',
+                  stroke: '#ffffff',
+                  strokeWidth: point.isLast ? 2 : 1.5,
+                }}
+              />
+            </g>
+          </ChartValueTooltip>
+        ))}
       </Box>
       {!isSingleRowCard ? (
         <Box
@@ -1021,16 +1081,24 @@ function LineChartPreview({
 function ColumnChartPreview({
   isSingleRowCard,
   labels,
+  tooltipLabels,
   values,
+  chartPresetId,
 }: {
   isSingleRowCard: boolean;
   labels?: string[];
+  tooltipLabels?: string[];
   values?: number[];
+  chartPresetId?: string;
 }) {
   const chartValues = values && values.length > 0 ? values : [24, 31, 28, 37];
   const chartLabels = labels && labels.length === chartValues.length
     ? labels
     : chartValues.map((_, index) => `${index + 1}`);
+  const chartTooltipLabels =
+    tooltipLabels && tooltipLabels.length === chartValues.length
+      ? tooltipLabels
+      : chartLabels;
   const maxValue = Math.max(...chartValues, 1);
   const chartHeight = isSingleRowCard ? 54 : 112;
   const svgWidth = 180;
@@ -1096,22 +1164,30 @@ function ColumnChartPreview({
           const isLastBar = index === chartValues.length - 1;
 
           return (
-            <Box
+            <ChartValueTooltip
               key={`column-bar-${index}`}
-              component="rect"
-              x={barX}
-              y={barY}
-              width={barWidth}
-              height={barHeight}
-              rx={2}
-              ry={2}
-              sx={{
-                fill: isLastBar ? '#0f766e' : 'rgba(15, 118, 110, 0.34)',
-                filter: isLastBar
-                  ? 'drop-shadow(0px 6px 12px rgba(15, 118, 110, 0.16))'
-                  : 'none',
-              }}
-            />
+              title={formatSeriesPointTooltip(
+                chartPresetId,
+                chartTooltipLabels[index],
+                value
+              )}
+            >
+              <rect
+                x={barX}
+                y={barY}
+                width={barWidth}
+                height={barHeight}
+                rx={2}
+                ry={2}
+                style={{
+                  cursor: 'help',
+                  fill: isLastBar ? '#0f766e' : 'rgba(15, 118, 110, 0.34)',
+                  filter: isLastBar
+                    ? 'drop-shadow(0px 6px 12px rgba(15, 118, 110, 0.16))'
+                    : 'none',
+                }}
+              />
+            </ChartValueTooltip>
           );
         })}
       </Box>
@@ -1148,13 +1224,17 @@ function ColumnChartPreview({
 function PieChartPreview({
   isSingleRowCard,
   labels,
+  tooltipLabels,
   values,
+  chartPresetId,
   cardWidth,
   cardHeight,
 }: {
   isSingleRowCard: boolean;
   labels?: string[];
+  tooltipLabels?: string[];
   values?: number[];
+  chartPresetId?: string;
   cardWidth: number;
   cardHeight: number;
 }) {
@@ -1162,6 +1242,10 @@ function PieChartPreview({
   const chartLabels = labels && labels.length === chartValues.length
     ? labels
     : ['A', 'B', 'C', 'D'];
+  const chartTooltipLabels =
+    tooltipLabels && tooltipLabels.length === chartValues.length
+      ? tooltipLabels
+      : chartLabels;
   const isCompactPieCard =
     !isSingleRowCard && (cardHeight <= 2 || cardWidth <= 2);
   const showLegend = !isSingleRowCard && !isCompactPieCard && chartLabels.length > 0;
@@ -1172,23 +1256,32 @@ function PieChartPreview({
       : 'min(100%, 112px)';
   const totalValue = chartValues.reduce((sum, value) => sum + value, 0);
   const pieColors = ['#0f766e', '#0891b2', '#6366f1', '#f59e0b', '#ef4444'];
-  const conicSegments = chartValues
-    .reduce(
-      (result, value, index) => {
-        const share = (value / Math.max(totalValue, 1)) * 100;
-        const endPercent = result.currentPercent + share;
+  const donutOuterRadius = 46;
+  const donutInnerRadius = isSingleRowCard ? 23 : isCompactPieCard ? 25 : 22;
+  const pieSegments = chartValues.reduce<
+    Array<{
+      color: string;
+      endAngle: number;
+      startAngle: number;
+      tooltipLabel: string;
+      value: number;
+    }>
+  >((result, value, index) => {
+    const startAngle = result.at(-1)?.endAngle ?? 0;
+    const endAngle =
+      startAngle + (value / Math.max(totalValue, 1)) * 360;
 
-        return {
-          currentPercent: endPercent,
-          segments: [
-            ...result.segments,
-            `${pieColors[index % pieColors.length]} ${result.currentPercent}% ${endPercent}%`,
-          ],
-        };
+    return [
+      ...result,
+      {
+        color: pieColors[index % pieColors.length],
+        endAngle,
+        startAngle,
+        tooltipLabel: chartTooltipLabels[index],
+        value,
       },
-      { currentPercent: 0, segments: [] as string[] }
-    )
-    .segments.join(', ');
+    ];
+  }, []);
 
   return (
     <Box
@@ -1204,24 +1297,52 @@ function PieChartPreview({
       }}
     >
       <Box
+        component="svg"
+        viewBox="0 0 100 100"
+        aria-hidden
         sx={{
-          position: 'relative',
           width: donutSize,
           maxWidth: '100%',
           aspectRatio: '1 / 1',
           alignSelf: 'center',
-          borderRadius: '50%',
-          background: `conic-gradient(${conicSegments})`,
+          display: 'block',
           flexShrink: 0,
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            inset: isSingleRowCard ? '13px' : isCompactPieCard ? '26%' : '24%',
-            borderRadius: '50%',
-            backgroundColor: '#ffffff',
-          },
         }}
-      />
+      >
+        {pieSegments.map((segment, index) => (
+          <ChartValueTooltip
+            key={`pie-segment-${index}`}
+            title={formatPieSliceTooltip(
+              chartPresetId,
+              segment.tooltipLabel,
+              segment.value,
+              totalValue
+            )}
+          >
+            <path
+              d={describeDonutSegmentPath(
+                50,
+                50,
+                donutOuterRadius,
+                donutInnerRadius,
+                segment.startAngle,
+                segment.endAngle
+              )}
+              style={{
+                cursor: 'help',
+                fill: segment.color,
+              }}
+            />
+          </ChartValueTooltip>
+        ))}
+        <Box
+          component="circle"
+          cx="50"
+          cy="50"
+          r={donutInnerRadius}
+          sx={{ fill: '#ffffff', pointerEvents: 'none' }}
+        />
+      </Box>
       {showLegend ? (
         <Box
           sx={{
@@ -1234,57 +1355,66 @@ function PieChartPreview({
           }}
         >
           {chartLabels.map((label, index) => (
-            <Box
+            <ChartValueTooltip
               key={`pie-legend-${label}`}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 0.75,
-                minWidth: 0,
-              }}
+              title={formatPieSliceTooltip(
+                chartPresetId,
+                chartTooltipLabels[index],
+                chartValues[index],
+                totalValue
+              )}
             >
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 0.55,
+                  justifyContent: 'space-between',
+                  gap: 0.75,
                   minWidth: 0,
                 }}
               >
                 <Box
                   sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    bgcolor: pieColors[index % pieColors.length],
-                    flexShrink: 0,
-                  }}
-                />
-                <Typography
-                  sx={{
-                    color: 'text.secondary',
-                    fontSize: '0.62rem',
-                    fontWeight: 700,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.55,
+                    minWidth: 0,
                   }}
                 >
-                  {label}
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 999,
+                      bgcolor: pieColors[index % pieColors.length],
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                </Box>
+                <Typography
+                  sx={{
+                    color: 'text.primary',
+                    fontSize: '0.64rem',
+                    fontWeight: 800,
+                    flexShrink: 0,
+                  }}
+                >
+                  {formatPieShare(chartValues[index], totalValue)}
                 </Typography>
               </Box>
-              <Typography
-                sx={{
-                  color: 'text.primary',
-                  fontSize: '0.64rem',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                {formatPieShare(chartValues[index], totalValue)}
-              </Typography>
-            </Box>
+            </ChartValueTooltip>
           ))}
         </Box>
       ) : null}
@@ -1294,10 +1424,16 @@ function PieChartPreview({
 
 function ScatterChartPreview({
   isSingleRowCard,
+  labels,
+  tooltipLabels,
   points,
+  chartPresetId,
 }: {
   isSingleRowCard: boolean;
+  labels?: string[];
+  tooltipLabels?: string[];
   points?: DraggableGridChartPoint[];
+  chartPresetId?: string;
 }) {
   const chartPoints =
     points && points.length > 1
@@ -1310,6 +1446,14 @@ function ScatterChartPreview({
           { x: 73, y: 54 },
           { x: 91, y: 63 },
         ];
+  const chartLabels =
+    labels && labels.length === chartPoints.length
+      ? labels
+      : chartPoints.map((_, index) => `${index + 1}`);
+  const chartTooltipLabels =
+    tooltipLabels && tooltipLabels.length === chartPoints.length
+      ? tooltipLabels
+      : chartLabels;
   const xMin = Math.min(...chartPoints.map((point) => point.x));
   const xMax = Math.max(...chartPoints.map((point) => point.x));
   const yMin = Math.min(...chartPoints.map((point) => point.y));
@@ -1377,18 +1521,37 @@ function ScatterChartPreview({
           const isHighlighted = index === chartPoints.length - 1;
 
           return (
-            <Box
+            <ChartValueTooltip
               key={`scatter-point-${index}`}
-              component="circle"
-              cx={x}
-              cy={y}
-              r={isHighlighted ? 4.5 : 3.5}
-              sx={{
-                fill: isHighlighted ? '#0f766e' : 'rgba(8, 145, 178, 0.48)',
-                stroke: '#ffffff',
-                strokeWidth: 1.5,
-              }}
-            />
+              title={formatScatterPointTooltip(
+                chartPresetId,
+                chartTooltipLabels[index],
+                point
+              )}
+            >
+              <g>
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={8}
+                  style={{
+                    cursor: 'help',
+                    fill: 'rgba(8, 145, 178, 0.001)',
+                  }}
+                />
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={isHighlighted ? 4.5 : 3.5}
+                  style={{
+                    fill: isHighlighted ? '#0f766e' : 'rgba(8, 145, 178, 0.48)',
+                    pointerEvents: 'none',
+                    stroke: '#ffffff',
+                    strokeWidth: 1.5,
+                  }}
+                />
+              </g>
+            </ChartValueTooltip>
           );
         })}
       </Box>
@@ -1419,8 +1582,166 @@ function getChartSurfaceSx(isSingleRowCard: boolean) {
   };
 }
 
+function ChartValueTooltip({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactElement;
+}) {
+  return (
+    <Tooltip
+      title={title}
+      arrow
+      disableInteractive
+      enterDelay={0}
+      enterNextDelay={0}
+      leaveDelay={0}
+      enterTouchDelay={0}
+      leaveTouchDelay={1200}
+      slotProps={{
+        popper: {
+          sx: {
+            pointerEvents: 'none',
+            zIndex: 1700,
+          },
+        },
+        tooltip: {
+          sx: {
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            lineHeight: 1.35,
+          },
+        },
+      }}
+    >
+      {children}
+    </Tooltip>
+  );
+}
+
 function formatPieShare(value: number, totalValue: number) {
   return `${(((value / Math.max(totalValue, 1)) * 100) || 0).toFixed(1)}%`;
+}
+
+function formatSeriesPointTooltip(
+  chartPresetId: string | undefined,
+  label: string,
+  value: number
+) {
+  switch (chartPresetId) {
+    case 'residential-monthly-bill':
+      return `${label}: ${formatCurrencyValue(value)}/month`;
+    case 'residential-price':
+      return `${label}: ${formatDecimalValue(value, 2)}¢/kWh`;
+    case 'all-sector-sales':
+      return `${label}: ${formatEnergySalesValue(value)} sold`;
+    case 'all-sector-revenue':
+      return `${label}: ${formatRevenueValue(value)} revenue`;
+    default:
+      return `${label}: ${formatGenericChartValue(value)}`;
+  }
+}
+
+function formatPieSliceTooltip(
+  chartPresetId: string | undefined,
+  label: string,
+  value: number,
+  totalValue: number
+) {
+  switch (chartPresetId) {
+    case 'sales-share':
+      return `${label}: ${formatEnergySalesValue(value)} sold (${formatPieShare(value, totalValue)})`;
+    case 'revenue-share':
+      return `${label}: ${formatRevenueValue(value)} revenue (${formatPieShare(value, totalValue)})`;
+    default:
+      return `${label}: ${formatGenericChartValue(value)} (${formatPieShare(value, totalValue)})`;
+  }
+}
+
+function formatScatterPointTooltip(
+  chartPresetId: string | undefined,
+  label: string,
+  point: DraggableGridChartPoint
+) {
+  switch (chartPresetId) {
+    case 'bill-vs-usage':
+      return `${label}: ${formatDecimalValue(point.x, 0)} kWh/month usage, ${formatCurrencyValue(point.y)}/month bill`;
+    case 'price-vs-usage':
+      return `${label}: ${formatDecimalValue(point.x, 0)} kWh/month usage, ${formatDecimalValue(point.y, 2)}¢/kWh price`;
+    default:
+      return `${label}: x ${formatGenericChartValue(point.x)}, y ${formatGenericChartValue(point.y)}`;
+  }
+}
+
+function formatCurrencyValue(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatRevenueValue(value: number) {
+  if (value >= 1000) {
+    return `$${formatDecimalValue(value / 1000, 1)}B`;
+  }
+
+  return `$${formatDecimalValue(value, 0)}M`;
+}
+
+function formatEnergySalesValue(value: number) {
+  return `${formatDecimalValue(value / 1000, value / 1000 < 100 ? 1 : 0)} TWh`;
+}
+
+function formatGenericChartValue(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatDecimalValue(value: number, maximumFractionDigits: number) {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
+    minimumFractionDigits: 0,
+  }).format(value);
+}
+
+function describeDonutSegmentPath(
+  centerX: number,
+  centerY: number,
+  outerRadius: number,
+  innerRadius: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const outerStart = polarToCartesian(centerX, centerY, outerRadius, startAngle);
+  const outerEnd = polarToCartesian(centerX, centerY, outerRadius, endAngle);
+  const innerEnd = polarToCartesian(centerX, centerY, innerRadius, endAngle);
+  const innerStart = polarToCartesian(centerX, centerY, innerRadius, startAngle);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function polarToCartesian(
+  centerX: number,
+  centerY: number,
+  radius: number,
+  angleInDegrees: number
+) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
 }
 
 function getWidgetInitial(kind: NonNullable<DraggableGridItem['kind']>) {

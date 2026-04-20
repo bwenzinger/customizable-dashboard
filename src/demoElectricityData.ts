@@ -105,6 +105,7 @@ type DemoElectricityChartResolution = {
   chartType: DraggableGridChartType;
   description: string;
   labels?: string[];
+  tooltipLabels?: string[];
   points?: DraggableGridChartPoint[];
   trend: string;
   values?: number[];
@@ -156,6 +157,7 @@ const electricityChartPresets: Record<
         chartType: 'line',
         description: `2024 average residential monthly electric bill by ${scope.breakdownLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `Highest in view: ${highestArea.label} at ${formatUsd(highestArea.residentialAverageMonthlyBillUsd)}/month`,
         values: areas.map((area) => area.residentialAverageMonthlyBillUsd),
       };
@@ -181,6 +183,7 @@ const electricityChartPresets: Record<
         chartType: 'line',
         description: `2024 average residential price by ${scope.breakdownLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `Highest in view: ${highestArea.label} at ${formatCents(highestArea.residentialAveragePriceCentsPerKwh)}`,
         values: areas.map(
           (area) => area.residentialAveragePriceCentsPerKwh
@@ -208,6 +211,7 @@ const electricityChartPresets: Record<
         chartType: 'column',
         description: `2024 all-sector electricity sales by ${scope.breakdownLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `${highestArea.label} leads with ${formatTwh(highestArea.allSectorSalesThousandMWh)} sold`,
         values: areas.map((area) => area.allSectorSalesThousandMWh),
       };
@@ -233,6 +237,7 @@ const electricityChartPresets: Record<
         chartType: 'column',
         description: `2024 all-sector electricity revenue by ${scope.breakdownLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `${highestArea.label} leads with ${formatRevenue(highestArea.allSectorRevenueMillionUsd)}`,
         values: areas.map((area) => area.allSectorRevenueMillionUsd),
       };
@@ -262,6 +267,7 @@ const electricityChartPresets: Record<
         chartType: 'pie',
         description: `2024 share of all-sector electricity sales within ${scope.regionLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `${highestArea.label} accounts for ${formatPercentShare(
           highestArea.allSectorSalesThousandMWh,
           totalSales
@@ -294,6 +300,7 @@ const electricityChartPresets: Record<
         chartType: 'pie',
         description: `2024 share of all-sector electricity revenue within ${scope.regionLabel}.`,
         labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         trend: `${highestArea.label} accounts for ${formatPercentShare(
           highestArea.allSectorRevenueMillionUsd,
           totalRevenue
@@ -321,6 +328,8 @@ const electricityChartPresets: Record<
       return {
         chartType: 'scatter',
         description: `2024 residential monthly bill versus usage by ${scope.breakdownLabel}.`,
+        labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         points: areas.map((area) => ({
           x: area.residentialAverageMonthlyConsumptionKwh,
           y: area.residentialAverageMonthlyBillUsd,
@@ -348,6 +357,8 @@ const electricityChartPresets: Record<
       return {
         chartType: 'scatter',
         description: `2024 residential price versus usage by ${scope.breakdownLabel}.`,
+        labels: areas.map((area) => area.shortLabel),
+        tooltipLabels: areas.map((area) => area.label),
         points: areas.map((area) => ({
           x: area.residentialAverageMonthlyConsumptionKwh,
           y: area.residentialAveragePriceCentsPerKwh,
