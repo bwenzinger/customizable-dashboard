@@ -1,0 +1,31 @@
+name: Deploy Home Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: customizable-dashboard-home-server-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, customizable-dashboard]
+    timeout-minutes: 15
+    env:
+      APP_DIR: /home/bwenzinger/dev/customizable-dashboard
+    steps:
+      - name: Check out deployment script
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Deploy local clone and verify HTTP response
+        shell: bash
+        run: bash "$GITHUB_WORKSPACE/scripts/deploy-from-git.sh"

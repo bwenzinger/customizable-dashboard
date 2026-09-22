@@ -1,0 +1,24 @@
+[Unit]
+Description=Customizable Dashboard
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=bwenzinger
+Group=bwenzinger
+WorkingDirectory=/home/bwenzinger/dev/customizable-dashboard
+Environment=NODE_ENV=production
+Environment=PATH=@NODE_DIRECTORY@:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/bash /home/bwenzinger/dev/customizable-dashboard/start.sh
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
