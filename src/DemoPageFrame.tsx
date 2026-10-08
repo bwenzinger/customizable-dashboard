@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 type DemoPageFrameProps = {
   controls: ReactNode;
@@ -58,6 +59,43 @@ export function DemoPageFrame({
           place, watch their neighbors make room, and reshape the layout. This
           reusable grid could power a dashboard, a workspace, or a visual board.
         </Typography>
+        <Box
+          component="aside"
+          aria-label="Custom grid implementation"
+          sx={(theme) => ({
+            mt: 5,
+            p: { xs: 4, md: 5 },
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            borderLeft: `4px solid ${theme.palette.primary.main}`,
+            borderRadius: '12px',
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
+          })}
+        >
+          <Chip
+            label="Built from scratch"
+            color="primary"
+            size="small"
+            sx={{ mb: 3, fontWeight: 700 }}
+          />
+          <Typography
+            component="p"
+            sx={{
+              fontSize: { xs: 18, md: 20 },
+              fontWeight: 700,
+              lineHeight: 1.4,
+              mb: 2,
+            }}
+          >
+            No drag-and-drop or grid-layout libraries.
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{ fontSize: 14, lineHeight: 1.7 }}
+          >
+            Placement, collision handling, resizing, and animation are
+            implemented in this project. React and MUI provide the UI.
+          </Typography>
+        </Box>
       </Box>
 
       <Box

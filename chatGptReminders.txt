@@ -39,6 +39,7 @@ Draggable grid behavior preferences:
 - Deleting a saved dashboard from the demo should be a confirmed action; after deletion, load another saved dashboard if one exists, otherwise fall back to an empty unsaved draft.
 - The demo should feel more like a simple app shell than a floating playground: use a clean toolbar above the grid for dashboard selection, naming, save actions, add-item actions, and edit mode, while keeping the dashboard canvas visually plain below it.
 - The portfolio page should briefly introduce drag/drop smoothness and resizing as the main showcase, and explain the existing Save/Add controls as examples of product integration (saved dashboards stay in this browser).
+- Prominently emphasize that the grid interaction logic is custom-built without drag-and-drop or grid-layout libraries; acknowledge React/MUI for the UI rather than claiming the entire app has no external dependencies.
 - Visually contain the demo canvas and keep white cards distinct from empty space; make portfolio presentation changes in the demo shell without changing established grid/card interactions.
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
