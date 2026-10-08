@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -23,6 +24,11 @@ import {
 } from './demoElectricityData';
 import { ExampleDashboardCard } from './ExampleDashboardCard';
 import { DemoPageFrame } from './DemoPageFrame';
+import { DemoGridSettings } from './DemoGridSettings';
+import {
+  defaultDemoGridSettings,
+  getDemoGridColumns,
+} from './demoGridSettingsConfig';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
 import { getRequiredRowCount } from './drag-and-droppable-grid/gridMath';
 import type {
@@ -183,6 +189,14 @@ function App() {
     initialDashboardState.activeLayout
   );
   const [canEdit, setCanEdit] = useState(true);
+  // Change public props without remounting the grid or resetting layout/history.
+  // Playground settings are separate from the saved dashboard data.
+  const [gridSettings, setGridSettings] = useState(defaultDemoGridSettings);
+  const [showGridSettings, setShowGridSettings] = useState(false);
+  const gridColumns = useMemo(
+    () => getDemoGridColumns(gridSettings),
+    [gridSettings]
+  );
   const [addMenuAnchor, setAddMenuAnchor] = useState<HTMLElement | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -548,6 +562,16 @@ function App() {
   return (
     <DemoPageFrame
       isEmpty={layout.length === 0}
+      settings={
+        <Box id="grid-settings-panel" hidden={!showGridSettings}>
+          <DemoGridSettings
+            canEdit={canEdit}
+            values={gridSettings}
+            onChange={setGridSettings}
+            onReset={() => setGridSettings(defaultDemoGridSettings)}
+          />
+        </Box>
+      }
       actions={
         <>
           <Button
@@ -583,6 +607,15 @@ function App() {
               },
             }}
           />
+          <Button
+            variant="outlined"
+            aria-expanded={showGridSettings}
+            aria-controls="grid-settings-panel"
+            onClick={() => setShowGridSettings((open) => !open)}
+            sx={dashboardToolbarButtonSx}
+          >
+            Customize grid
+          </Button>
           <Menu
             id="add-dashboard-item-menu"
             anchorEl={addMenuAnchor}
@@ -770,12 +803,16 @@ function App() {
         layout={layout}
         onLayoutChanged={handleLayoutChanged}
         canEdit={canEdit}
-        enableUndo={true}
-        enableCollapse={true}
-        enableOptimize={true}
-        columns={10}
-        gap={16}
-        showGridlines={false}
+        enableUndo={gridSettings.enableUndo}
+        enableCollapse={gridSettings.enableCollapse}
+        enableOptimize={gridSettings.enableOptimize}
+        columns={gridColumns}
+        gap={gridSettings.gap}
+        rowHeight={gridSettings.rowHeight}
+        animationMs={gridSettings.animationMs}
+        resizeHandleWidth={gridSettings.resizeHandleWidth}
+        minRowCount={gridSettings.minRowCount}
+        showGridlines={gridSettings.showGridlines}
         renderItem={(
           item: DraggableGridItem,
           _index: number,

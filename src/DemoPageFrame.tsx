@@ -4,6 +4,7 @@ import { Box, Chip, Typography } from '@mui/material';
 type DemoPageFrameProps = {
   controls: ReactNode;
   actions: ReactNode;
+  settings?: ReactNode;
   children: ReactNode;
   isEmpty: boolean;
 };
@@ -11,6 +12,7 @@ type DemoPageFrameProps = {
 export function DemoPageFrame({
   controls,
   actions,
+  settings,
   children,
   isEmpty,
 }: DemoPageFrameProps) {
@@ -123,6 +125,7 @@ export function DemoPageFrame({
             {actions}
           </Box>
         </Box>
+        {settings}
         {/* Preserve the grid's own scrolling and interaction surface inside the
             frame. Collapsing the example controls must not remount the grid. */}
         <Box

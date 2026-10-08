@@ -42,6 +42,7 @@ Draggable grid behavior preferences:
 - Prominently emphasize that the grid interaction logic is custom-built without drag-and-drop or grid-layout libraries; acknowledge React/MUI for the UI rather than claiming the entire app has no external dependencies.
 - Keep the portfolio intro and custom-built message compact so the grid appears early. Put Add Item and the edit-mode toggle beside the grid; keep Save/New/Delete in an expandable example-controls section below the canvas so visitors can try the grid without reading lengthy explanations.
 - The example app controls should default to expanded while remaining collapsible.
+- Expose live grid props through a compact, initially collapsed Customize grid panel beside Add Item: columns (including responsive presets), row height, gap, animation duration, resize-handle size, minimum rows, gridlines, and layout-tool toggles. Preserve existing defaults, keep the grid mounted, and keep playground settings separate from saved dashboards. Reset restores settings only; changing columns can normalize card sizes/positions. Offer an optional current-props preview for developers.
 - Visually contain the demo canvas and keep white cards distinct from empty space; make portfolio presentation changes in the demo shell without changing established grid/card interactions.
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
