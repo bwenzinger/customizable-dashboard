@@ -22,6 +22,7 @@ import {
   normalizeDemoLayoutWithElectricityCharts,
 } from './demoElectricityData';
 import { ExampleDashboardCard } from './ExampleDashboardCard';
+import { DemoPageFrame } from './DemoPageFrame';
 import { DraggableGridContextWrapper } from './drag-and-droppable-grid/DraggableGridContextWrapper';
 import { getRequiredRowCount } from './drag-and-droppable-grid/gridMath';
 import type {
@@ -272,11 +273,11 @@ function App() {
   );
 
   const handleOpenAddMenu = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-    if (!canEdit) {
-      return;
-    }
+      if (!canEdit) {
+        return;
+      }
 
-    setAddMenuAnchor(event.currentTarget);
+      setAddMenuAnchor(event.currentTarget);
   }, [canEdit]);
 
   const handleCloseAddMenu = useCallback(() => {
@@ -545,284 +546,249 @@ function App() {
   );
 
   return (
-    <Box
-      sx={{
-        height: '100vh',
-        width: '100vw',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: 'background.default',
-        overflow: 'hidden',
-      }}
-    >
-      <Box
-        sx={{
-          flexShrink: 0,
-          px: { xs: 2, md: 3 },
-          py: 1.5,
-          borderBottom: '1px solid rgba(15, 23, 42, 0.08)',
-          bgcolor: '#ffffff',
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 1,
-          }}
-        >
+    <DemoPageFrame
+      isEmpty={layout.length === 0}
+      controls={
+        <>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: 1,
-              minWidth: 0,
-            }}
-          >
-            <Typography
-              sx={{
-                color: 'text.primary',
-                fontSize: '1rem',
-                fontWeight: 900,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-                mr: 0.5,
-              }}
-            >
-              Dashboards
-            </Typography>
-            <Box
-              component="select"
-              aria-label="Saved dashboards"
-              value={activeDashboardId ?? ''}
-              onChange={handleDashboardSelectionChanged}
-              sx={{
-                ...dashboardToolbarFieldSx,
-                minWidth: { xs: 160, md: 190 },
-                cursor: 'pointer',
-              }}
-            >
-              <option value="" disabled>
-                Unsaved Draft
-              </option>
-              {savedDashboards.map((dashboard) => (
-                <option key={dashboard.id} value={dashboard.id}>
-                  {dashboard.name}
-                </option>
-              ))}
-            </Box>
-            <Box
-              component="input"
-              aria-label="Dashboard name"
-              value={activeDashboardName}
-              onChange={handleActiveDashboardNameChanged}
-              placeholder="Dashboard name"
-              sx={{
-                ...dashboardToolbarFieldSx,
-                minWidth: { xs: 180, md: 220 },
-              }}
-            />
-            <Button
-              variant="contained"
-              onClick={handleSaveLayout}
-              sx={dashboardToolbarButtonSx}
-            >
-              Save
-            </Button>
-            <Button
-              variant="text"
-              color="inherit"
-              onClick={handleSaveLayoutAsCopy}
-              sx={dashboardToolbarButtonSx}
-            >
-              Save As
-            </Button>
-            <Button
-              variant="text"
-              color="inherit"
-              onClick={handleNewDashboard}
-              sx={dashboardToolbarButtonSx}
-            >
-              New
-            </Button>
-            <Button
-              variant="text"
-              color="error"
-              onClick={handleDeleteDashboard}
-              disabled={!activeDashboardId}
-              sx={dashboardToolbarButtonSx}
-            >
-              Delete
-            </Button>
-          </Box>
-
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              justifyContent: 'flex-end',
               gap: 1,
             }}
           >
-            {saveStatus ? (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1,
+                minWidth: 0,
+              }}
+            >
               <Typography
-                aria-live="polite"
                 sx={{
-                  color: 'text.secondary',
-                  fontSize: '0.76rem',
-                  fontWeight: 700,
-                  px: 0.5,
+                  color: 'text.primary',
+                  fontSize: '1rem',
+                  fontWeight: 900,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                  mr: 0.5,
                 }}
               >
-                {saveStatus}
+                Dashboards
               </Typography>
-            ) : null}
-            <Button
-              id="add-dashboard-item-button"
-              variant="outlined"
-              color="inherit"
-              onClick={handleOpenAddMenu}
-              disabled={!canEdit}
-              aria-controls={isAddMenuOpen ? 'add-dashboard-item-menu' : undefined}
-              aria-expanded={isAddMenuOpen ? 'true' : undefined}
-              aria-haspopup="menu"
-              sx={dashboardToolbarButtonSx}
-            >
-              Add Item
-            </Button>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={canEdit}
-                  onChange={handleEditModeChanged}
-                  color="primary"
-                />
-              }
-              label={canEdit ? 'Editing' : 'Viewing'}
+              <Box
+                component="select"
+                aria-label="Saved dashboards"
+                value={activeDashboardId ?? ''}
+                onChange={handleDashboardSelectionChanged}
+                sx={{
+                  ...dashboardToolbarFieldSx,
+                  minWidth: { xs: 160, md: 190 },
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="" disabled>
+                  Unsaved Draft
+                </option>
+                {savedDashboards.map((dashboard) => (
+                  <option key={dashboard.id} value={dashboard.id}>
+                    {dashboard.name}
+                  </option>
+                ))}
+              </Box>
+              <Box
+                component="input"
+                aria-label="Dashboard name"
+                value={activeDashboardName}
+                onChange={handleActiveDashboardNameChanged}
+                placeholder="Dashboard name"
+                sx={{
+                  ...dashboardToolbarFieldSx,
+                  minWidth: { xs: 180, md: 220 },
+                }}
+              />
+              <Button
+                variant="contained"
+                onClick={handleSaveLayout}
+                sx={dashboardToolbarButtonSx}
+              >
+                Save
+              </Button>
+              <Button
+                variant="text"
+                color="inherit"
+                onClick={handleSaveLayoutAsCopy}
+                sx={dashboardToolbarButtonSx}
+              >
+                Save As
+              </Button>
+              <Button
+                variant="text"
+                color="inherit"
+                onClick={handleNewDashboard}
+                sx={dashboardToolbarButtonSx}
+              >
+                New
+              </Button>
+              <Button
+                variant="text"
+                color="error"
+                onClick={handleDeleteDashboard}
+                disabled={!activeDashboardId}
+                sx={dashboardToolbarButtonSx}
+              >
+                Delete
+              </Button>
+            </Box>
+
+            <Box
               sx={{
-                m: 0,
-                '& .MuiFormControlLabel-label': {
-                  color: 'text.secondary',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                },
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                justifyContent: 'flex-end',
+                gap: 1,
               }}
-            />
+            >
+              {saveStatus ? (
+                <Typography
+                  aria-live="polite"
+                  sx={{
+                    color: 'text.secondary',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    px: 0.5,
+                  }}
+                >
+                  {saveStatus}
+                </Typography>
+              ) : null}
+              <Button
+                id="add-dashboard-item-button"
+                variant="outlined"
+                color="inherit"
+                onClick={handleOpenAddMenu}
+                disabled={!canEdit}
+                aria-controls={
+                  isAddMenuOpen ? 'add-dashboard-item-menu' : undefined
+                }
+                aria-expanded={isAddMenuOpen ? 'true' : undefined}
+                aria-haspopup="menu"
+                sx={dashboardToolbarButtonSx}
+              >
+                Add Item
+              </Button>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={canEdit}
+                    onChange={handleEditModeChanged}
+                    color="primary"
+                  />
+                }
+                label={canEdit ? 'Editing' : 'Viewing'}
+                sx={{
+                  m: 0,
+                  '& .MuiFormControlLabel-label': {
+                    color: 'text.secondary',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                  },
+                }}
+              />
+            </Box>
           </Box>
-        </Box>
-        <Menu
-          id="add-dashboard-item-menu"
-          anchorEl={addMenuAnchor}
-          open={canEdit && isAddMenuOpen}
-          onClose={handleCloseAddMenu}
-          MenuListProps={{
-            'aria-labelledby': 'add-dashboard-item-button',
-          }}
-          PaperProps={{
-            sx: {
-              mt: 1,
-              width: 280,
-              borderRadius: 2,
-              boxShadow:
-                '0px 8px 24px rgba(16, 24, 40, 0.14),0px 2px 6px rgba(16, 24, 40, 0.08)',
-            },
-          }}
-        >
-          {addItemOptions.map((option) => (
-            <MenuItem
-              key={option.id}
-              onClick={() => {
-                handleAddItemOption(option);
-              }}
-              sx={{
-                alignItems: 'flex-start',
-                gap: 1.5,
-                py: 1.35,
-              }}
-            >
-              <TemplateOptionIcon label={option.label} />
-              <ListItemText
-                primary={option.label}
-                secondary={option.description}
-                primaryTypographyProps={{
-                  fontSize: '0.9rem',
-                  fontWeight: 700,
+          <Menu
+            id="add-dashboard-item-menu"
+            anchorEl={addMenuAnchor}
+            open={canEdit && isAddMenuOpen}
+            onClose={handleCloseAddMenu}
+            MenuListProps={{
+              'aria-labelledby': 'add-dashboard-item-button',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                width: 280,
+                borderRadius: 2,
+                boxShadow:
+                  '0px 8px 24px rgba(16, 24, 40, 0.14),0px 2px 6px rgba(16, 24, 40, 0.08)',
+              },
+            }}
+          >
+            {addItemOptions.map((option) => (
+              <MenuItem
+                key={option.id}
+                onClick={() => {
+                  handleAddItemOption(option);
                 }}
-                secondaryTypographyProps={{
-                  fontSize: '0.76rem',
-                  lineHeight: 1.25,
+                sx={{
+                  alignItems: 'flex-start',
+                  gap: 1.5,
+                  py: 1.35,
                 }}
-              />
-            </MenuItem>
-          ))}
-        </Menu>
-        <Box
-          component="input"
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          disabled={!canEdit}
-          onChange={handleImageFileSelected}
-          sx={{
-            display: 'none',
-          }}
-        />
-      </Box>
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          // px: { xs: 2, md: 3 },
-          // py: { xs: 2, md: 3 },
-        }}
-      >
-        <Box
-          sx={{
-            height: '100%',
-            minHeight: 0,
-            // borderRadius: 3,
-            p: 0,
-            // border: '1px solid rgba(15, 23, 42, 0.08)',
-            // bgcolor: '#ffffff',
-            // boxShadow: '0px 8px 24px rgba(15, 23, 42, 0.06)',
-            // p: { xs: 1, sm: 1.5, md: 2 },
-            overflow: 'hidden',
-          }}
-        >
-          <DraggableGridContextWrapper
-            layout={layout}
-            onLayoutChanged={handleLayoutChanged}
-            canEdit={canEdit}
-            enableUndo={true}
-            enableCollapse={true}
-            enableOptimize={true}
-            columns={10}
-            gap={16}
-            showGridlines={false}
-            renderItem={(
-              item: DraggableGridItem,
-              _index: number,
-              isDragging: boolean,
-              isResizing: boolean
-            ) => (
-              <ExampleDashboardCard
-                item={item}
-                isDragging={isDragging}
-                isResizing={isResizing}
-                canEdit={canEdit}
-                onDeleteItem={handleDeleteDashboardItem}
-                onItemChanged={handleDashboardItemChanged}
-              />
-            )}
+              >
+                <TemplateOptionIcon label={option.label} />
+                <ListItemText
+                  primary={option.label}
+                  secondary={option.description}
+                  primaryTypographyProps={{
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: '0.76rem',
+                    lineHeight: 1.25,
+                  }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
+          <Box
+            component="input"
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            disabled={!canEdit}
+            onChange={handleImageFileSelected}
+            sx={{
+              display: 'none',
+            }}
           />
-        </Box>
-      </Box>
-    </Box>
+        </>
+      }
+    >
+      <DraggableGridContextWrapper
+        layout={layout}
+        onLayoutChanged={handleLayoutChanged}
+        canEdit={canEdit}
+        enableUndo={true}
+        enableCollapse={true}
+        enableOptimize={true}
+        columns={10}
+        gap={16}
+        showGridlines={false}
+        renderItem={(
+          item: DraggableGridItem,
+          _index: number,
+          isDragging: boolean,
+          isResizing: boolean
+        ) => (
+          <ExampleDashboardCard
+            item={item}
+            isDragging={isDragging}
+            isResizing={isResizing}
+            canEdit={canEdit}
+            onDeleteItem={handleDeleteDashboardItem}
+            onItemChanged={handleDashboardItemChanged}
+          />
+        )}
+      />
+    </DemoPageFrame>
   );
 }
 

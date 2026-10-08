@@ -41,9 +41,7 @@ export function ExampleDashboardCard(
   const theme = useTheme();
   const itemKind = item.kind ?? 'card';
   const interactiveCardSx = getInteractiveCardSx(theme, isResizing);
-  const editableCardChromeSx = canEdit
-    ? getEditableCardChromeSx(theme)
-    : {};
+  const editableCardChromeSx = canEdit ? getEditableCardChromeSx(theme) : {};
   const editableImageCardSx = canEdit
     ? {
         border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
@@ -683,8 +681,9 @@ function EditableDashboardTitle({
     return (
       <ButtonBase
         disableRipple
-        data-draggable-grid-no-drag="true"
-        onMouseDown={handleNoDragMouseDown}
+        // Allow the parent card's native drag gesture from the displayed title.
+        // A completed drag suppresses click; an ordinary click opens the editor.
+        title="Click to edit; drag to move"
         onClick={() => {
           setDraftTitle(title ?? '');
           setIsEditing(true);
@@ -929,9 +928,10 @@ function LineChartPreview({
 }) {
   const chartValues =
     values && values.length > 1 ? values : [24, 31, 28, 37, 35, 43, 48];
-  const chartLabels = labels && labels.length === chartValues.length
-    ? labels
-    : chartValues.map((_, index) => `${index + 1}`);
+  const chartLabels =
+    labels && labels.length === chartValues.length
+      ? labels
+      : chartValues.map((_, index) => `${index + 1}`);
   const chartHeight = isSingleRowCard ? 54 : 82;
   const svgWidth = 180;
   const svgHeight = 64;
@@ -964,9 +964,7 @@ function LineChartPreview({
   });
   const pointsString = chartPoints.map(({ x, y }) => `${x},${y}`).join(' ');
   const areaStart = `${svgPaddingX},${svgHeight - svgPaddingY}`;
-  const areaEnd = `${
-    svgWidth - svgPaddingX
-  },${svgHeight - svgPaddingY}`;
+  const areaEnd = `${svgWidth - svgPaddingX},${svgHeight - svgPaddingY}`;
 
   return (
     <Box sx={getChartSurfaceSx(isSingleRowCard)}>
@@ -1092,9 +1090,10 @@ function ColumnChartPreview({
   chartPresetId?: string;
 }) {
   const chartValues = values && values.length > 0 ? values : [24, 31, 28, 37];
-  const chartLabels = labels && labels.length === chartValues.length
-    ? labels
-    : chartValues.map((_, index) => `${index + 1}`);
+  const chartLabels =
+    labels && labels.length === chartValues.length
+      ? labels
+      : chartValues.map((_, index) => `${index + 1}`);
   const chartTooltipLabels =
     tooltipLabels && tooltipLabels.length === chartValues.length
       ? tooltipLabels
@@ -1157,9 +1156,10 @@ function ColumnChartPreview({
         {chartValues.map((value, index) => {
           const barHeight = Math.max(
             10,
-            ((value / maxValue) * (baselineY - svgPaddingTop - 2))
+            (value / maxValue) * (baselineY - svgPaddingTop - 2)
           );
-          const barX = svgPaddingX + slotWidth * index + (slotWidth - barWidth) / 2;
+          const barX =
+            svgPaddingX + slotWidth * index + (slotWidth - barWidth) / 2;
           const barY = baselineY - barHeight;
           const isLastBar = index === chartValues.length - 1;
 
@@ -1239,16 +1239,18 @@ function PieChartPreview({
   cardHeight: number;
 }) {
   const chartValues = values && values.length > 0 ? values : [42, 24, 19, 15];
-  const chartLabels = labels && labels.length === chartValues.length
-    ? labels
-    : ['A', 'B', 'C', 'D'];
+  const chartLabels =
+    labels && labels.length === chartValues.length
+      ? labels
+      : ['A', 'B', 'C', 'D'];
   const chartTooltipLabels =
     tooltipLabels && tooltipLabels.length === chartValues.length
       ? tooltipLabels
       : chartLabels;
   const isCompactPieCard =
     !isSingleRowCard && (cardHeight <= 2 || cardWidth <= 2);
-  const showLegend = !isSingleRowCard && !isCompactPieCard && chartLabels.length > 0;
+  const showLegend =
+    !isSingleRowCard && !isCompactPieCard && chartLabels.length > 0;
   const donutSize = isSingleRowCard
     ? 56
     : isCompactPieCard
@@ -1268,8 +1270,7 @@ function PieChartPreview({
     }>
   >((result, value, index) => {
     const startAngle = result.at(-1)?.endAngle ?? 0;
-    const endAngle =
-      startAngle + (value / Math.max(totalValue, 1)) * 360;
+    const endAngle = startAngle + (value / Math.max(totalValue, 1)) * 360;
 
     return [
       ...result,
@@ -1621,7 +1622,7 @@ function ChartValueTooltip({
 }
 
 function formatPieShare(value: number, totalValue: number) {
-  return `${(((value / Math.max(totalValue, 1)) * 100) || 0).toFixed(1)}%`;
+  return `${((value / Math.max(totalValue, 1)) * 100 || 0).toFixed(1)}%`;
 }
 
 function formatSeriesPointTooltip(
@@ -1715,10 +1716,20 @@ function describeDonutSegmentPath(
   startAngle: number,
   endAngle: number
 ) {
-  const outerStart = polarToCartesian(centerX, centerY, outerRadius, startAngle);
+  const outerStart = polarToCartesian(
+    centerX,
+    centerY,
+    outerRadius,
+    startAngle
+  );
   const outerEnd = polarToCartesian(centerX, centerY, outerRadius, endAngle);
   const innerEnd = polarToCartesian(centerX, centerY, innerRadius, endAngle);
-  const innerStart = polarToCartesian(centerX, centerY, innerRadius, startAngle);
+  const innerStart = polarToCartesian(
+    centerX,
+    centerY,
+    innerRadius,
+    startAngle
+  );
   const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
 
   return [
