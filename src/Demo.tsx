@@ -548,6 +548,100 @@ function App() {
   return (
     <DemoPageFrame
       isEmpty={layout.length === 0}
+      actions={
+        <>
+          <Button
+            id="add-dashboard-item-button"
+            variant="contained"
+            disableElevation
+            onClick={handleOpenAddMenu}
+            disabled={!canEdit}
+            aria-controls={
+              isAddMenuOpen ? 'add-dashboard-item-menu' : undefined
+            }
+            aria-expanded={isAddMenuOpen ? 'true' : undefined}
+            aria-haspopup="menu"
+            sx={dashboardToolbarButtonSx}
+          >
+            Add Item
+          </Button>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={canEdit}
+                onChange={handleEditModeChanged}
+                color="primary"
+              />
+            }
+            label={canEdit ? 'Editing' : 'Viewing'}
+            sx={{
+              m: 0,
+              '& .MuiFormControlLabel-label': {
+                color: 'text.secondary',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+              },
+            }}
+          />
+          <Menu
+            id="add-dashboard-item-menu"
+            anchorEl={addMenuAnchor}
+            open={canEdit && isAddMenuOpen}
+            onClose={handleCloseAddMenu}
+            MenuListProps={{
+              'aria-labelledby': 'add-dashboard-item-button',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                width: 280,
+                borderRadius: 2,
+                boxShadow:
+                  '0px 8px 24px rgba(16, 24, 40, 0.14),0px 2px 6px rgba(16, 24, 40, 0.08)',
+              },
+            }}
+          >
+            {addItemOptions.map((option) => (
+              <MenuItem
+                key={option.id}
+                onClick={() => {
+                  handleAddItemOption(option);
+                }}
+                sx={{
+                  alignItems: 'flex-start',
+                  gap: 1.5,
+                  py: 1.35,
+                }}
+              >
+                <TemplateOptionIcon label={option.label} />
+                <ListItemText
+                  primary={option.label}
+                  secondary={option.description}
+                  primaryTypographyProps={{
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: '0.76rem',
+                    lineHeight: 1.25,
+                  }}
+                />
+              </MenuItem>
+            ))}
+          </Menu>
+          <Box
+            component="input"
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            disabled={!canEdit}
+            onChange={handleImageFileSelected}
+            sx={{
+              display: 'none',
+            }}
+          />
+        </>
+      }
       controls={
         <>
           <Box
@@ -667,98 +761,8 @@ function App() {
                   {saveStatus}
                 </Typography>
               ) : null}
-              <Button
-                id="add-dashboard-item-button"
-                variant="outlined"
-                color="inherit"
-                onClick={handleOpenAddMenu}
-                disabled={!canEdit}
-                aria-controls={
-                  isAddMenuOpen ? 'add-dashboard-item-menu' : undefined
-                }
-                aria-expanded={isAddMenuOpen ? 'true' : undefined}
-                aria-haspopup="menu"
-                sx={dashboardToolbarButtonSx}
-              >
-                Add Item
-              </Button>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={canEdit}
-                    onChange={handleEditModeChanged}
-                    color="primary"
-                  />
-                }
-                label={canEdit ? 'Editing' : 'Viewing'}
-                sx={{
-                  m: 0,
-                  '& .MuiFormControlLabel-label': {
-                    color: 'text.secondary',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                  },
-                }}
-              />
             </Box>
           </Box>
-          <Menu
-            id="add-dashboard-item-menu"
-            anchorEl={addMenuAnchor}
-            open={canEdit && isAddMenuOpen}
-            onClose={handleCloseAddMenu}
-            MenuListProps={{
-              'aria-labelledby': 'add-dashboard-item-button',
-            }}
-            PaperProps={{
-              sx: {
-                mt: 1,
-                width: 280,
-                borderRadius: 2,
-                boxShadow:
-                  '0px 8px 24px rgba(16, 24, 40, 0.14),0px 2px 6px rgba(16, 24, 40, 0.08)',
-              },
-            }}
-          >
-            {addItemOptions.map((option) => (
-              <MenuItem
-                key={option.id}
-                onClick={() => {
-                  handleAddItemOption(option);
-                }}
-                sx={{
-                  alignItems: 'flex-start',
-                  gap: 1.5,
-                  py: 1.35,
-                }}
-              >
-                <TemplateOptionIcon label={option.label} />
-                <ListItemText
-                  primary={option.label}
-                  secondary={option.description}
-                  primaryTypographyProps={{
-                    fontSize: '0.9rem',
-                    fontWeight: 700,
-                  }}
-                  secondaryTypographyProps={{
-                    fontSize: '0.76rem',
-                    lineHeight: 1.25,
-                  }}
-                />
-              </MenuItem>
-            ))}
-          </Menu>
-          <Box
-            component="input"
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            disabled={!canEdit}
-            onChange={handleImageFileSelected}
-            sx={{
-              display: 'none',
-            }}
-          />
         </>
       }
     >
