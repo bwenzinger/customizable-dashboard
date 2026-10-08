@@ -38,12 +38,15 @@ Draggable grid behavior preferences:
 - New dashboards and the default unsaved draft should start empty rather than with seeded sample cards.
 - Deleting a saved dashboard from the demo should be a confirmed action; after deletion, load another saved dashboard if one exists, otherwise fall back to an empty unsaved draft.
 - The demo should feel more like a simple app shell than a floating playground: use a clean toolbar above the grid for dashboard selection, naming, save actions, add-item actions, and edit mode, while keeping the dashboard canvas visually plain below it.
+- The portfolio page should briefly introduce drag/drop smoothness and resizing as the main showcase, and explain the existing Save/Add controls as examples of product integration (saved dashboards stay in this browser).
+- Visually contain the demo canvas and keep white cards distinct from empty space; make portfolio presentation changes in the demo shell without changing established grid/card interactions.
 - Dragging should have a clear floating visual state while moving.
 - Dashboard card content should stay readable at the smallest 1x1 size.
 - For standard cards, prefer a simple title plus compact max-size and current-size chips over dense metadata blocks.
 - In 1x1 cards, prioritize keeping the title visible; hide chips or other secondary metadata before truncating the name.
 - In single-row cards, prioritize the title over metadata; 2x1 cards should hide chips before cutting off the name.
 - Card titles across the demo should be editable inline in a Material-feeling way: clicking the title should swap it into a compact MUI text field, save on blur/Enter, and cancel on Escape.
+- The displayed title should also allow dragging the card: click to edit, drag to move. Only the active title editor should suppress dragging so text selection and editing remain normal.
 - Omitted card size fields should default sensibly: current width/height to 1, minimums to 1, and maximums to unlimited.
 - The demo UI should support adding dashboard items through an Add Item menu, with templates like basic cards, buttons/actions, charts, filters, rich text notes, uploaded images, and metrics appended at the bottom of the grid.
 - Filter dashboard items should keep the tile body compact and move configuration into an edit modal; in edit mode the card can expose a small Edit action, while the modal handles only filter-specific settings like URL param name and dropdown options, since the card title itself is edited inline. Avoid redundant filter metadata in the card body like URL-param chips, option-count chips, or extra explanatory text when the title and select already communicate the purpose. Selecting a filter value should update the browser URL search params without reloading the page, and filter cards can support compact sizing around 3x1 by default with a 2x1 minimum.

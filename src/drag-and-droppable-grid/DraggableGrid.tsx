@@ -137,7 +137,9 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       return null;
     }
 
-    return normalizedCommittedLayout.find((item) => item.id === draggingId) ?? null;
+    return (
+      normalizedCommittedLayout.find((item) => item.id === draggingId) ?? null
+    );
   }, [draggingId, normalizedCommittedLayout]);
   const renderedLayout = useMemo(() => {
     if (!draggingId || !draggedCommittedItem) {
@@ -537,12 +539,8 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
 
         const deltaX = startRect.left - targetRect.left;
         const deltaY = startRect.top - targetRect.top;
-        const scaleX = isActiveItem
-          ? startRect.width / targetRect.width
-          : 1;
-        const scaleY = isActiveItem
-          ? startRect.height / targetRect.height
-          : 1;
+        const scaleX = isActiveItem ? startRect.width / targetRect.width : 1;
+        const scaleY = isActiveItem ? startRect.height / targetRect.height : 1;
         const hasSizeDelta = isActiveItem && (scaleX !== 1 || scaleY !== 1);
 
         if (deltaX === 0 && deltaY === 0 && !hasSizeDelta) {
@@ -643,13 +641,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
         window.cancelAnimationFrame(frameId);
       });
     };
-  }, [
-    animationMs,
-    draggingId,
-    gridResizeState,
-    renderedLayout,
-    resizeState,
-  ]);
+  }, [animationMs, draggingId, gridResizeState, renderedLayout, resizeState]);
 
   useEffect(() => {
     if (!resizeState) {
@@ -982,7 +974,10 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
       event.clientY,
       dragSourceLayout
     );
-    updateDragPreviewIndicator(previewResult?.slot ?? null, draggedCommittedItem);
+    updateDragPreviewIndicator(
+      previewResult?.slot ?? null,
+      draggedCommittedItem
+    );
 
     if (
       !previewResult ||
@@ -1228,9 +1223,7 @@ export function DraggableGrid(props: DraggableGridProps): React.JSX.Element {
           height: '100%',
           width: '100%',
           minHeight:
-            gridContentHeight +
-            containerPadding * 2 +
-            gridResizeFooterHeight,
+            gridContentHeight + containerPadding * 2 + gridResizeFooterHeight,
           display: 'grid',
           gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${resolvedRowCount}, ${rowHeight}px)`,
